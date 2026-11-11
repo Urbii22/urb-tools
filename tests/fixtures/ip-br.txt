@@ -1,0 +1,5 @@
+lo               UNKNOWN        127.0.0.1/8 ::1/128 
+eth0             UP             10.0.2.15/24 fe80::a00:27ff:fe4e:66a1/64 
+tun0             UNKNOWN        10.10.14.7/23 dead:beef:2::1005/64 fe80::1/64 
+docker0          DOWN           172.17.0.1/16 
+veth1@if5        UP             

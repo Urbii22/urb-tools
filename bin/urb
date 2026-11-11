@@ -1,0 +1,126 @@
+#!/usr/bin/env bash
+# =============================================================================
+#  urb — punto de entrada de URB-Tools / URB Terminal
+#  Uso: urb [opciones globales] [comando] [argumentos]   (ver: urb help)
+#
+#  Nota: no se usa `set -e` a propósito. Los errores esperables (herramienta
+#  ausente, permiso denegado, objetivo inválido...) se comprueban y se
+#  informan explícitamente con códigos de retorno, sin cierres inesperados.
+# =============================================================================
+set -uo pipefail
+
+if (( BASH_VERSINFO[0] < 4 || (BASH_VERSINFO[0] == 4 && BASH_VERSINFO[1] < 4) )); then
+    echo "urb: Bash >= 4.4 is required (current: ${BASH_VERSION})" >&2
+    exit 1
+fi
+
+# Resolver la carpeta real de instalación (aunque `urb` sea un enlace simbólico)
+_urb_src="${BASH_SOURCE[0]}"
+_urb_src="$(readlink -f -- "$_urb_src" 2>/dev/null || printf '%s' "$_urb_src")"
+URB_HOME="$(cd -P -- "$(dirname -- "$_urb_src")/.." && pwd -P)" || {
+    echo "urb: cannot resolve installation directory" >&2; exit 1; }
+export URB_HOME
+unset _urb_src
+
+for _f in lib/utils.sh lib/ui.sh lib/system.sh lib/dashboard.sh \
+          modules/scan.sh modules/network.sh modules/monitor.sh \
+          modules/logs.sh modules/ctf.sh modules/settings.sh; do
+    # shellcheck source=/dev/null
+    source "${URB_HOME}/${_f}" || { echo "urb: failed to load ${_f}" >&2; exit 1; }
+done
+unset _f
+
+urb_help() {
+    local topic="${1:-}"
+    case "$topic" in
+        scan|recon)     scan_help; return 0 ;;
+        network|net)    network_help; return 0 ;;
+        monitor|mon)    monitor_help; return 0 ;;
+        logs|log)       logs_help; return 0 ;;
+        ctf|lab)        ctf_help; return 0 ;;
+        config|settings) settings_help; return 0 ;;
+    esac
+    ui_print_logo
+    cat <<EOF
+  ${T_TITLE}URB-TOOLS${C_RESET} ${T_DIM}v${URB_VERSION}${C_RESET} — ${T_ACCENT}Cybersecurity toolkit for Kali Linux${C_RESET}
+
+${C_BOLD}USAGE${C_RESET}
+  urb [global options] [command] [arguments]
+
+${C_BOLD}COMMANDS${C_RESET}
+  ${T_KEY}(none)${C_RESET}               Open the interactive URB Terminal dashboard
+  ${T_KEY}scan${C_RESET} <target>        Nmap scan with profiles, live progress and saved results
+  ${T_KEY}network${C_RESET} [action]     Interfaces, routes, gateway, connections, discovery, checks
+  ${T_KEY}monitor${C_RESET} [--once]     Live CPU / RAM / disk / process monitor
+  ${T_KEY}logs${C_RESET} [action]        Authentication, SSH and system error log analysis
+  ${T_KEY}ctf${C_RESET} new <name>       Create a CTF/lab workspace (also: list, path)
+  ${T_KEY}config${C_RESET} [action]      Show / edit / init user configuration
+  ${T_KEY}doctor${C_RESET}               Check dependencies and environment
+  ${T_KEY}help${C_RESET} [command]       Show help (e.g. urb help scan)
+  ${T_KEY}version${C_RESET}              Show version
+
+${C_BOLD}GLOBAL OPTIONS${C_RESET}
+  --no-color      Disable colors (also honours NO_COLOR)
+  --ascii         Use ASCII instead of Unicode box drawing
+  --no-anim       Disable animations
+  -y, --yes       Answer "yes" to confirmations (non-interactive use)
+
+${C_BOLD}EXAMPLES${C_RESET}
+  urb scan 10.10.10.5 --profile quick
+  urb network discover 192.168.56.0/24
+  urb logs auth --since 2026-11-01 --ip 10.0.0.5
+  urb ctf new htb-lame
+
+${T_DIM}Only scan systems you own or are explicitly authorized to test.${C_RESET}
+EOF
+}
+
+urb_version() {
+    printf '%s %s\n' "$URB_NAME" "$URB_VERSION"
+}
+
+main() {
+    local color_mode="${URB_COLOR:-auto}"
+    # Opciones globales (antes del comando)
+    while (( $# > 0 )); do
+        case "$1" in
+            --no-color) color_mode="never"; shift ;;
+            --color)    color_mode="always"; shift ;;
+            --ascii)    export URB_ASCII=1; shift ;;
+            --no-anim)  export URB_NO_ANIM=1; shift ;;
+            -y|--yes)   export URB_ASSUME_YES=1; shift ;;
+            --) shift; break ;;
+            -h|--help|-v|--version) break ;;
+            -*) urb_init_colors "$color_mode"; msg_err "Unknown global option: $1"; msg_dim "    Run 'urb help'"; return 2 ;;
+            *) break ;;
+        esac
+    done
+
+    urb_init_colors "$color_mode"
+    urb_load_config
+    [[ "${URB_NO_ANIM:-0}" == "1" ]] && URB_CFG[ANIMATIONS]=0
+    ui_init_theme
+    ui_load_logo
+
+    local cmd="${1:-}"
+    (( $# > 0 )) && shift
+    case "$cmd" in
+        ""|dashboard|ui|tui) dashboard_run ;;
+        scan|recon)          scan_main "$@" ;;
+        network|net)         network_main "$@" ;;
+        monitor|mon)         monitor_main "$@" ;;
+        logs|log)            logs_main "$@" ;;
+        ctf|lab)             ctf_main "$@" ;;
+        config|settings)     settings_main "$@" ;;
+        doctor)              urb_doctor ;;
+        help|-h|--help)      urb_help "$@" ;;
+        version|-v|--version) urb_version ;;
+        *)
+            msg_err "Unknown command: ${cmd}"
+            msg_dim "    Run 'urb help' to see available commands."
+            return 2 ;;
+    esac
+}
+
+main "$@"
+exit $?

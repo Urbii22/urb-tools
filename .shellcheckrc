@@ -1,0 +1,6 @@
+# Los módulos se cargan dinámicamente desde bin/urb
+external-sources=true
+source-path=SCRIPTDIR
+# SC2034: variables usadas desde otros ficheros (tema, glifos)
+# SC2088: "~" aparece a propósito en mensajes para el usuario
+disable=SC2034,SC2088

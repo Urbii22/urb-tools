@@ -1,0 +1,22 @@
+# Resultados y datos locales (nunca al repositorio)
+*.nmap
+*.gnmap
+*.xml
+*.log
+scans/
+labs/
+urb-labs/
+# ...excepto los datos de ejemplo de los tests
+!tests/fixtures/
+!tests/fixtures/*
+
+# Configuración personal
+urb.conf
+
+# Editores / SO
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
+Thumbs.db

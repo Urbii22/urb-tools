@@ -1,0 +1,6 @@
+# Nmap 7.98 scan initiated Wed Nov 11 10:00:00 2026 as: nmap -sV -oA sample 10.0.0.10
+Host: 10.0.0.10 (target.lab)	Status: Up
+Host: 10.0.0.10 (target.lab)	Ports: 22/open/tcp//ssh//OpenSSH 9.6p1 Ubuntu 3ubuntu13 (Ubuntu Linux; protocol 2.0)/, 80/open/tcp//http//Apache httpd 2.4.58 ((Ubuntu))/, 443/filtered/tcp//https///	Ignored State: closed (997)
+Host: 10.0.0.11 ()	Status: Up
+Host: 10.0.0.11 ()	Ports: 3306/open/tcp//mysql//MySQL 8.0.36/	Ignored State: closed (999)
+# Nmap done at Wed Nov 11 10:00:30 2026 -- 2 IP addresses (2 hosts up) scanned in 30.00 seconds
