@@ -138,15 +138,46 @@ if (( ${#pkgs[@]} > 0 )); then
     fi
 fi
 
-# --- 4. Copiar la aplicación --------------------------------------------------------
+# --- 4. Comprobaciones previas (antes de modificar nada) ---------------------------
 for f in bin/urb lib/utils.sh lib/ui.sh lib/system.sh lib/dashboard.sh config/default.conf; do
     [[ -f "${SRC_DIR}/${f}" ]] || { err "Incomplete source tree: missing ${f}"; exit 1; }
 done
 
-if (( LINK_MODE )); then
-    TARGET_HOME="$SRC_DIR"
-    info "Developer mode: launcher will point to ${SRC_DIR}"
-else
+# ¿Es <dir> una instalación de URB-Tools (marcador) o un árbol de código de URB-Tools?
+is_urb_tree() {
+    local dir="$1"
+    [[ -f "${dir}/${MARKER}" ]] && return 0
+    [[ -f "${dir}/bin/urb" && -f "${dir}/lib/utils.sh" ]] &&
+        grep -q '^URB_NAME="URB-Tools"$' "${dir}/lib/utils.sh" 2>/dev/null
+}
+
+# Un enlace solo es "nuestro" si apunta a <dir>/bin/urb y <dir> es de URB-Tools
+# (instalación normal o modo --link). Un nombre acabado en /bin/urb no basta.
+is_urb_launcher() {
+    local link="$1" target
+    [[ -L "$link" ]] || return 1
+    target="$(readlink -- "$link")" || return 1
+    [[ "$target" == */bin/urb ]] || return 1
+    [[ "$target" == /* ]] || target="$(dirname -- "$link")/${target}"
+    # Enlace roto hacia nuestra propia carpeta de instalación (borrada a mano)
+    [[ "$target" == "${APP_DIR}/bin/urb" ]] && return 0
+    is_urb_tree "${target%/bin/urb}"
+}
+
+PREV_LAUNCHER=""
+if [[ -L "$LAUNCHER" ]]; then
+    if is_urb_launcher "$LAUNCHER"; then
+        PREV_LAUNCHER="$(readlink -- "$LAUNCHER")"
+    else
+        err "${LAUNCHER} is a link to something that is not URB-Tools ($(readlink -- "$LAUNCHER")). Not touching it."
+        exit 1
+    fi
+elif [[ -e "$LAUNCHER" ]]; then
+    err "${LAUNCHER} exists and is not an URB launcher. Remove or rename it first."
+    exit 1
+fi
+
+if (( ! LINK_MODE )); then
     if [[ -e "$APP_DIR" && ! -f "${APP_DIR}/${MARKER}" ]]; then
         err "${APP_DIR} exists but was not created by this installer. Not touching it."
         exit 1
@@ -154,51 +185,113 @@ else
     if [[ "$(readlink -f -- "$APP_DIR" 2>/dev/null)" == "$SRC_DIR" ]]; then
         err "APP_DIR points to the source tree; refusing to overwrite."; exit 1
     fi
-    staging="${APP_DIR}.new.$$"
-    mkdir -p -- "$staging" || { err "Cannot create ${staging}"; exit 1; }
-    if ! cp -R -- "${SRC_DIR}/bin" "${SRC_DIR}/lib" "${SRC_DIR}/modules" "${SRC_DIR}/config" "$staging/"; then
-        rm -rf -- "$staging"; err "Copy failed."; exit 1
+fi
+
+# verify_tree DIR [requiere_marcador] → ficheros clave, sintaxis y arranque real
+verify_tree() {
+    local dir="$1" need_marker="${2:-1}" f
+    for f in bin/urb lib/utils.sh lib/ui.sh lib/system.sh lib/dashboard.sh config/default.conf; do
+        [[ -f "${dir}/${f}" ]] || { err "Verification failed: missing ${f} in ${dir}"; return 1; }
+    done
+    if (( need_marker )) && [[ ! -f "${dir}/${MARKER}" ]]; then err "Verification failed: missing ${MARKER}"; return 1; fi
+    for f in "${dir}/bin/urb" "${dir}"/lib/*.sh "${dir}"/modules/*.sh; do
+        bash -n -- "$f" 2>/dev/null || { err "Verification failed: syntax error in ${f}"; return 1; }
+    done
+    "${dir}/bin/urb" --no-color version >/dev/null 2>&1 || { err "Verification failed: ${dir}/bin/urb does not run"; return 1; }
+    return 0
+}
+
+# --- 5. Instalación transaccional -----------------------------------------------------
+# Nada de la instalación anterior se toca hasta que la nueva está copiada y verificada.
+# La anterior se conserva como copia temporal y se restaura si falla cualquier paso.
+# La configuración y los datos personales (~/.config, ~/.local/share, labs) nunca se tocan.
+STAGING="" BACKUP="" TXN=0 NEW_APP=0
+
+rollback() {
+    (( TXN )) || return 0
+    TXN=0
+    trap - INT TERM HUP
+    warn "Installation failed: restoring the previous state..."
+    if (( NEW_APP )); then
+        # Quitar la versión nueva (solo si es nuestra) y devolver la anterior a su sitio
+        if [[ -f "${APP_DIR}/${MARKER}" ]]; then rm -rf -- "${APP_DIR:?}"; fi
+        if [[ -n "$BACKUP" && -d "$BACKUP" ]]; then
+            if [[ ! -e "$APP_DIR" ]] && mv -- "$BACKUP" "$APP_DIR"; then ok "Previous installation restored in ${APP_DIR}"
+            else err "Could not restore ${APP_DIR}. The previous version is kept in ${BACKUP}"; fi
+        fi
+    elif [[ -n "$BACKUP" && -d "$BACKUP" && ! -e "$APP_DIR" ]]; then
+        mv -- "$BACKUP" "$APP_DIR" && ok "Previous installation restored in ${APP_DIR}"
+    fi
+    if [[ -n "$PREV_LAUNCHER" ]]; then
+        ln -sfn -- "$PREV_LAUNCHER" "$LAUNCHER" 2>/dev/null || err "Could not restore ${LAUNCHER} -> ${PREV_LAUNCHER}"
+    elif [[ -L "$LAUNCHER" ]] && is_urb_launcher "$LAUNCHER"; then
+        rm -f -- "$LAUNCHER"   # lo creó esta ejecución
+    fi
+    [[ -n "$STAGING" && -d "$STAGING" ]] && rm -rf -- "$STAGING"
+    return 0
+}
+fail() { err "$*"; rollback; exit 1; }
+
+if (( LINK_MODE )); then
+    TARGET_HOME="$SRC_DIR"
+    info "Developer mode: launcher will point to ${SRC_DIR}"
+    chmod +x -- "${SRC_DIR}/bin/urb" "${SRC_DIR}"/modules/*.sh 2>/dev/null
+    verify_tree "$SRC_DIR" 0 || exit 1
+else
+    # 5a. Preparar y verificar la nueva versión en una carpeta temporal
+    STAGING="${APP_DIR}.new.$$"
+    mkdir -p -- "$STAGING" || { err "Cannot create ${STAGING}"; exit 1; }
+    if ! cp -R -- "${SRC_DIR}/bin" "${SRC_DIR}/lib" "${SRC_DIR}/modules" "${SRC_DIR}/config" "$STAGING/"; then
+        rm -rf -- "$STAGING"; err "Copy failed."; exit 1
     fi
     for f in README.md LICENSE install.sh uninstall.sh; do
-        [[ -f "${SRC_DIR}/${f}" ]] && cp -- "${SRC_DIR}/${f}" "$staging/"
+        [[ -f "${SRC_DIR}/${f}" ]] && cp -- "${SRC_DIR}/${f}" "$STAGING/"
     done
-    printf 'installed=%s\nsource=%s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$SRC_DIR" >"${staging}/${MARKER}"
-    if [[ -d "$APP_DIR" ]]; then
-        rm -rf -- "${APP_DIR:?}" || { rm -rf -- "$staging"; err "Cannot replace old install"; exit 1; }
-        info "Updating existing installation"
+    printf 'installed=%s\nsource=%s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$SRC_DIR" >"${STAGING}/${MARKER}"
+    chmod +x -- "${STAGING}/bin/urb" "${STAGING}"/modules/*.sh 2>/dev/null
+    if ! verify_tree "$STAGING" 1; then
+        rm -rf -- "$STAGING"; err "New version not installed; the existing installation was not modified."; exit 1
     fi
-    mv -- "$staging" "$APP_DIR" || { err "Cannot move files to ${APP_DIR}"; exit 1; }
+
+    # 5b. Sustitución: anterior → copia temporal, nueva → su sitio
+    TXN=1
+    trap 'rollback; exit 130' INT TERM HUP
+    mkdir -p -- "$(dirname -- "$APP_DIR")" || fail "Cannot create $(dirname -- "$APP_DIR")"
+    if [[ -d "$APP_DIR" ]]; then
+        BACKUP="${APP_DIR}.old.$$"
+        mv -- "$APP_DIR" "$BACKUP" || { BACKUP=""; fail "Cannot move the previous installation aside; nothing was changed."; }
+        info "Updating existing installation (previous version kept until success)"
+    fi
+    mv -- "$STAGING" "$APP_DIR" || fail "Cannot move files to ${APP_DIR}"
+    STAGING=""
+    NEW_APP=1
     TARGET_HOME="$APP_DIR"
     ok "Application installed in ${APP_DIR}"
 fi
-chmod +x -- "${TARGET_HOME}/bin/urb" "${TARGET_HOME}"/modules/*.sh 2>/dev/null
+TXN=1
+trap 'rollback; exit 130' INT TERM HUP
 
-# --- 5. Lanzador ----------------------------------------------------------------------
-mkdir -p -- "$BIN_DIR" || { err "Cannot create ${BIN_DIR}"; exit 1; }
-if [[ -e "$LAUNCHER" || -L "$LAUNCHER" ]]; then
-    if [[ -L "$LAUNCHER" ]]; then
-        cur="$(readlink -- "$LAUNCHER")"
-        case "$cur" in
-            */bin/urb) : ;;  # instalación previa de URB: se reemplaza
-            *) err "${LAUNCHER} is a link to something else (${cur}). Not touching it."; exit 1 ;;
-        esac
-    else
-        err "${LAUNCHER} exists and is not an URB launcher. Remove or rename it first."
-        exit 1
-    fi
-fi
-ln -sfn -- "${TARGET_HOME}/bin/urb" "$LAUNCHER" || { err "Cannot create ${LAUNCHER}"; exit 1; }
+# --- 6. Lanzador ------------------------------------------------------------------------
+mkdir -p -- "$BIN_DIR" || fail "Cannot create ${BIN_DIR}"
+ln -sfn -- "${TARGET_HOME}/bin/urb" "$LAUNCHER" || fail "Cannot create ${LAUNCHER}"
 ok "Launcher: ${LAUNCHER} -> ${TARGET_HOME}/bin/urb"
 
-# --- 6. Configuración y datos (nunca se sobrescriben) ------------------------------
+# --- 7. Verificación final a través del lanzador ----------------------------------------
+if ver="$("$LAUNCHER" --no-color version 2>&1)"; then ok "Check: ${ver}"
+else fail "The installed launcher failed: ${ver}"; fi
+
+# Éxito: cerrar la transacción y borrar la copia temporal de la versión anterior
+TXN=0
+trap - INT TERM HUP
+if [[ -n "$BACKUP" && -d "$BACKUP" ]]; then
+    rm -rf -- "$BACKUP" || warn "Could not remove the temporary backup ${BACKUP}; you can delete it."
+fi
+
+# --- 8. Configuración y datos (nunca se sobrescriben) ------------------------------
 "${TARGET_HOME}/bin/urb" --no-color config init >/dev/null 2>&1 \
     && ok "User config: ${XDG_CONFIG_HOME:-$HOME/.config}/urb-tools/urb.conf (kept if it already existed)" \
     || warn "Could not create user config (urb config init)."
 mkdir -p -- "${XDG_DATA_HOME:-$HOME/.local/share}/urb-tools/scans" 2>/dev/null || true
-
-# --- 7. Verificación y PATH -------------------------------------------------------------
-if ver="$("${TARGET_HOME}/bin/urb" version 2>&1)"; then ok "Check: ${ver}"
-else err "The installed launcher failed: ${ver}"; exit 1; fi
 
 printf '\n'
 if [[ ":${PATH}:" == *":${BIN_DIR}:"* ]]; then

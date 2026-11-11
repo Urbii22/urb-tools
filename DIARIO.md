@@ -36,3 +36,10 @@ openvpn <htb.ovpn>  →  urb            # el panel debe mostrar "VPN ● ACTIVE 
 ```
 
 Pendiente: zsh como shell por defecto (PATH a `~/.local/bin`), qterminal y fuentes Unicode.
+
+## 2026-11-11 · Instalador: lanzador seguro y actualización con rollback
+
+- `install.sh` solo sustituye `~/.local/bin/urb` si apunta a una instalación de URB-Tools (marcador `.urb-install`) o a un árbol de código de URB-Tools (`--link`). Un destino que solo acabe en `/bin/urb` ya no basta. La comprobación se hace antes de modificar nada.
+- Actualización transaccional: copia y verifica en `urb-tools.new.<pid>` (ficheros, `bash -n`, `urb version`), mueve la anterior a `urb-tools.old.<pid>`, activa la nueva y verifica a través del lanzador. Si algo falla, restaura la app y el lanzador anteriores; la copia temporal solo se borra al terminar con éxito.
+- Tests: 55/55 (10 del instalador, entre ellos el fallo simulado durante una actualización) · ShellCheck sin avisos.
+- Pendiente en Kali: `./install.sh` dos veces seguidas, `git pull && ./install.sh` como actualización, y `./install.sh --link`.
