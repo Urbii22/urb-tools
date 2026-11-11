@@ -162,3 +162,38 @@ test_uninstall_keeps_personal_data() {
     # Segunda ejecución: nada que hacer, sin error
     assert_status 0 bash "$URB_HOME/uninstall.sh" --yes
 }
+
+test_uninstall_ignores_foreign_symlink() {
+    # Sin URB instalado: un enlace ajeno acabado en /bin/urb no cuenta como instalación
+    mkdir -p "$HOME/othertool/bin" "$HOME/.local/bin"
+    printf '#!/bin/sh\necho other\n' >"$HOME/othertool/bin/urb"; chmod +x "$HOME/othertool/bin/urb"
+    ln -s "$HOME/othertool/bin/urb" "$(_LNK)"
+    local out
+    out="$(bash "$URB_HOME/uninstall.sh" --yes 2>&1)"
+    assert_eq "$?" 0 "$out"
+    assert_contains "$out" "Nothing to do"
+    assert_eq "$(readlink "$(_LNK)")" "$HOME/othertool/bin/urb"
+    assert_file "$HOME/othertool/bin/urb"
+}
+
+test_uninstall_removes_app_but_keeps_foreign_symlink() {
+    bash "$URB_HOME/install.sh" --yes --no-deps >/dev/null 2>&1
+    # Otro programa ha reemplazado el lanzador después de instalar URB
+    mkdir -p "$HOME/othertool/bin"; printf '#!/bin/sh\n' >"$HOME/othertool/bin/urb"
+    ln -sfn "$HOME/othertool/bin/urb" "$(_LNK)"
+    local out
+    out="$(bash "$URB_HOME/uninstall.sh" --yes 2>&1)"
+    assert_eq "$?" 0 "$out"
+    assert_contains "$out" "not an URB launcher, left untouched"
+    assert_eq "$(readlink "$(_LNK)")" "$HOME/othertool/bin/urb"
+    [[ ! -e "$(_APP)" ]] || _fail "app dir not removed"
+}
+
+test_uninstall_link_mode() {
+    assert_status 0 bash "$URB_HOME/install.sh" --yes --no-deps --link
+    local out
+    out="$(bash "$URB_HOME/uninstall.sh" --yes 2>&1)"
+    assert_eq "$?" 0 "$out"
+    [[ ! -e "$(_LNK)" && ! -L "$(_LNK)" ]] || _fail "--link launcher not removed"
+    assert_file "$URB_HOME/bin/urb"
+}

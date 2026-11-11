@@ -30,8 +30,26 @@ esac
 
 (( EUID == 0 )) && { err "Run as your normal user, not root."; exit 1; }
 
+# Misma comprobación que install.sh: un enlace solo es de URB-Tools si apunta a
+# <dir>/bin/urb y <dir> es una instalación (marcador) o un árbol de código de URB-Tools.
+is_urb_tree() {
+    local dir="$1"
+    [[ -f "${dir}/${MARKER}" ]] && return 0
+    [[ -f "${dir}/bin/urb" && -f "${dir}/lib/utils.sh" ]] &&
+        grep -q '^URB_NAME="URB-Tools"$' "${dir}/lib/utils.sh" 2>/dev/null
+}
+is_urb_launcher() {
+    local link="$1" target
+    [[ -L "$link" ]] || return 1
+    target="$(readlink -- "$link")" || return 1
+    [[ "$target" == */bin/urb ]] || return 1
+    [[ "$target" == /* ]] || target="$(dirname -- "$link")/${target}"
+    [[ "$target" == "${APP_DIR}/bin/urb" ]] && return 0
+    is_urb_tree "${target%/bin/urb}"
+}
+
 found=0
-[[ -L "$LAUNCHER" ]] && found=1
+is_urb_launcher "$LAUNCHER" && found=1
 [[ -f "${APP_DIR}/${MARKER}" ]] && found=1
 if (( ! found )); then info "URB-Tools does not seem to be installed for this user. Nothing to do."; exit 0; fi
 
@@ -43,12 +61,10 @@ if (( ! ASSUME_YES )); then
 fi
 
 rc=0
-if [[ -L "$LAUNCHER" ]]; then
-    target="$(readlink -- "$LAUNCHER")"
-    case "$target" in
-        */bin/urb) rm -f -- "$LAUNCHER" && ok "Removed launcher ${LAUNCHER}" || { err "Cannot remove ${LAUNCHER}"; rc=1; } ;;
-        *) warn "${LAUNCHER} points to ${target}; not an URB launcher, left untouched." ;;
-    esac
+if is_urb_launcher "$LAUNCHER"; then
+    if rm -f -- "$LAUNCHER"; then ok "Removed launcher ${LAUNCHER}"; else err "Cannot remove ${LAUNCHER}"; rc=1; fi
+elif [[ -L "$LAUNCHER" ]]; then
+    warn "${LAUNCHER} points to $(readlink -- "$LAUNCHER"); not an URB launcher, left untouched."
 elif [[ -e "$LAUNCHER" ]]; then
     warn "${LAUNCHER} is not a symlink created by the installer; left untouched."
 fi
