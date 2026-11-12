@@ -427,3 +427,9 @@ man ls                   # rueda: avanza/retrocede en man (q para salir)
 **Nota:** quien ya tenga `GOD_MOUSE="0"` en su `urb.conf` (lo copia `urb config init`) seguirá sin ratón hasta cambiarlo.
 
 **Confirmación (2026-11-12):** con `8f1ff6f` instalado en Kali, Diego indica que la rueda «parece funcionar correctamente» en QTerminal. No ha detallado qué pasos probó: la rueda en `less`/`man` y la selección con Shift + arrastrar siguen sin confirmarse por separado.
+
+# URB Red v0.2 — flujo de investigación
+
+Los vínculos guardan claves de servicio sin copiar el inventario; la comparación
+lee XML existentes y diferencia estados explícitos de ausencias. Los informes
+Markdown se crean con nombres nuevos y mantienen el `report.md` manual.

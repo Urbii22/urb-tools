@@ -89,8 +89,33 @@ red_scans() {
     case "$action" in
         list|ls) [[ $# -eq 0 ]] || { msg_err "Usage: urb red scans list"; return 2; }; red_scans_list ;;
         show)    (( $# <= 1 )) || { msg_err "Usage: urb red scans show <latest|S-001>"; return 2; }; red_scans_show "${1:-latest}" ;;
+        diff)
+            [[ $# -eq 2 ]] || { msg_err "Usage: urb red scans diff S-001 S-002"; return 2; }
+            local py a b aid bid ap bp
+            py="$(svc_python)" || { msg_err "python3 is required for scan comparison"; return 127; }
+            scn_resolve "$LAB_ROOT" "$1" || { msg_err "$SCN_ERR"; return 1; }
+            a="$(scn_dir "$LAB_ROOT")/${SCN_BASE}.xml"; aid="$SCN_ID"; scn_meta "$SCN_BASE"; ap="$SCN_PROFILE"
+            scn_resolve "$LAB_ROOT" "$2" || { msg_err "$SCN_ERR"; return 1; }
+            b="$(scn_dir "$LAB_ROOT")/${SCN_BASE}.xml"; bid="$SCN_ID"; scn_meta "$SCN_BASE"; bp="$SCN_PROFILE"
+            "$py" -B "$URB_HOME/lib/investigation.py" diff "$LAB_ROOT" "$a" "$b" "$aid" "$bid" "$ap" "$bp" ;;
         *) msg_err "Unknown scans action: ${action}"; msg_dim "    Usage: urb red scans [list|show <latest|S-001>]"; return 2 ;;
     esac
+}
+
+red_report() {
+    local action="${1:-}" py
+    (( $# > 0 )) && shift
+    case "$action" in -h|--help|help) red_help report; return ;; esac
+    _red_require_lab || return 1
+    case "$action" in
+        preview) [[ $# == 0 ]] || { msg_err "Usage: urb red report preview"; return 2; } ;;
+        generate) if [[ $# == 2 && "$1" == --output ]]; then shift; elif [[ $# != 0 ]]; then msg_err "Usage: urb red report generate [--output <path>]"; return 2; fi ;;
+        *) msg_err "Usage: urb red report preview | generate [--output <path>]"; return 2 ;;
+    esac
+    py="$(svc_python)" || { msg_err "python3 is required for reports"; return 127; }
+    scn_sync "$LAB_ROOT" || { msg_err "$SCN_ERR"; return 1; }
+    _svc_ensure || return $?
+    "$py" -B "$URB_HOME/lib/investigation.py" "$action" "$LAB_ROOT" "$@"
 }
 
 # --- Servicios ----------------------------------------------------------------------
@@ -120,6 +145,29 @@ _svc_fields() {
     tag="${SF[0]:-}" host="${SF[1]:-}" proto="${SF[2]:-}" port="${SF[3]:-}" state="${SF[4]:-}"
     service="${SF[5]:-}" product="${SF[6]:-}" version="${SF[7]:-}" extra="${SF[8]:-}" hostname="${SF[9]:-}"
     ls="${SF[10]:-}" le="${SF[11]:-}" lq="${SF[12]:-}" fs="${SF[13]:-}" fe="${SF[14]:-}" hist="${SF[15]:-}"
+}
+
+_svc_resolve_key() {
+    local ref="$1" want_host="" want_port="" want_proto="" count=0 line
+    local tag host proto port state service product version extra hostname ls le lq fs fe hist
+    local -a SF
+    if [[ "$ref" =~ ^([0-9]{1,5})(/(tcp|udp|sctp))?$ ]]; then
+        want_port="${BASH_REMATCH[1]}" want_proto="${BASH_REMATCH[3]}"
+    elif [[ "$ref" =~ ^(.+):([0-9]{1,5})(/(tcp|udp|sctp))?$ ]]; then
+        want_host="${BASH_REMATCH[1]}" want_port="${BASH_REMATCH[2]}" want_proto="${BASH_REMATCH[4]}"
+    else msg_err "Invalid service reference: ${ref}"; return 2; fi
+    _svc_ensure || return $?
+    while IFS= read -r line; do
+        _svc_fields "$line"
+        [[ "$tag" == svc && "$port" == "$want_port" ]] || continue
+        [[ -z "$want_proto" || "$proto" == "$want_proto" ]] || continue
+        [[ -z "$want_host" || "$host" == "$want_host" || "$hostname" == "$want_host" ]] || continue
+        SVC_KEY="${host}:${port}/${proto}"; count=$((count+1))
+    done <"$(svc_cache "$LAB_ROOT")"
+    (( count == 1 )) && return 0
+    if (( count == 0 )); then msg_err "Service '${ref}' not found in inventory."
+    else msg_err "Service '${ref}' is ambiguous; specify host:port/protocol."; fi
+    return 1
 }
 
 # Avisos de escaneos parciales, incompletos o inválidos

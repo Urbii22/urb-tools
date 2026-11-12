@@ -139,7 +139,7 @@ _urb_register_context_command() {
 }
 if [[ "${URB_PROFILE:-}" == red ]]; then
     _urb_register_context_command scan recon
-    for _urb_context_name in recon services scans findings notes target lab status; do
+    for _urb_context_name in recon services scans findings notes target lab status report; do
         _urb_register_context_command "$_urb_context_name" "$_urb_context_name"
     done
     unset _urb_context_name
@@ -175,7 +175,7 @@ if (( $+functions[compdef] )); then
         case "${words[2]}" in
             red)
                 if (( CURRENT == 3 )); then
-                    compadd -- lab target status recon findings notes scans services --no-anim --kill --session --help
+                    compadd -- lab target status recon findings notes scans services report --no-anim --kill --session --help
                     return
                 fi
                 case "${words[3]}" in
@@ -201,11 +201,23 @@ if (( $+functions[compdef] )); then
                     notes)   (( CURRENT == 4 )) && compadd -- add edit ;;
                     findings)
                         if (( CURRENT == 4 )); then
-                            compadd -- list add show status note evidence
-                        elif (( CURRENT == 5 )) && [[ "${words[4]}" == (show|status|note|evidence) ]]; then
+                            compadd -- list add show status note evidence link unlink
+                        elif (( CURRENT == 5 )) && [[ "${words[4]}" == (show|status|note|evidence|link|unlink) ]]; then
                             _urb_lab_root && compadd -- "$REPLY"/findings/F-*.finding(N:t:r)
                         elif [[ "${words[4]}" == status ]] && (( CURRENT == 6 )); then
                             compadd -- pending investigating suspected confirmed discarded checked
+                        elif [[ "${words[4]}" == (link|unlink) ]] && (( CURRENT == 6 )); then
+                            compadd -- --service
+                        elif [[ "${words[4]}" == (link|unlink) && "${words[CURRENT-1]}" == --service ]]; then
+                            if _urb_lab_root && [[ -r "$REPLY/scans/.services" ]]; then
+                                lines=("${(@f)$(<"$REPLY/scans/.services")}")
+                                for line in "${lines[@]}"; do
+                                    if [[ "$line" == svc$'\t'* ]]; then
+                                        ids+=("${${(ps:\t:)line}[2]}:${${(ps:\t:)line}[4]}/${${(ps:\t:)line}[3]}")
+                                    fi
+                                done
+                                compadd -- "${ids[@]}"
+                            fi
                         elif [[ "${words[4]}" == evidence && "${words[CURRENT-1]}" == --scan ]]; then
                             ids=(latest)
                             if _urb_lab_root && [[ -r "$REPLY/scans/.index" ]]; then
@@ -217,8 +229,8 @@ if (( $+functions[compdef] )); then
                             compadd -- --scan; _files
                         fi ;;
                     scans)
-                        if (( CURRENT == 4 )); then compadd -- list show
-                        elif [[ "${words[4]}" == show ]] && (( CURRENT == 5 )); then
+                        if (( CURRENT == 4 )); then compadd -- list show diff
+                        elif [[ "${words[4]}" == (show|diff) ]] && (( CURRENT == 5 || (CURRENT == 6 && words[4] == diff) )); then
                             ids=(latest)
                             if _urb_lab_root && [[ -r "$REPLY/scans/.index" ]]; then
                                 lines=("${(@f)$(<"$REPLY/scans/.index")}")
@@ -226,6 +238,7 @@ if (( $+functions[compdef] )); then
                             fi
                             compadd -- "${ids[@]}"
                         fi ;;
+                    report) if (( CURRENT == 4 )); then compadd -- preview generate; elif [[ "${words[4]}" == generate ]]; then compadd -- --output; _files; fi ;;
                     services)
                         if (( CURRENT == 4 )); then compadd -- list show refresh --all
                         elif [[ "${words[4]}" == show ]] && (( CURRENT == 5 )); then
@@ -253,7 +266,7 @@ if (( $+functions[compdef] )); then
             help)
                 if (( CURRENT == 3 )); then compadd -- scan network monitor logs ctf config god red sessions serve manual
                 elif [[ "${words[3]}" == red ]] && (( CURRENT == 4 )); then
-                    compadd -- shell lab target recon scans services findings notes context
+                    compadd -- shell lab target recon scans services findings notes report context
                 fi ;;
             serve)   compadd -- --port --bind --dir --yes ;;
             manual)  (( CURRENT == 3 )) && compadd -- commands examples path ;;

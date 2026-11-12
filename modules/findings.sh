@@ -85,6 +85,27 @@ red_findings_show() {
     printf '  %s%-9s%s %s\n' "$T_LABEL" "Lab" "$C_RESET" "$(lab_name "$LAB_ROOT")"
     [[ -n "$F_DESC" ]] && printf '  %s%-9s%s %s\n' "$T_LABEL" "Desc" "$C_RESET" "$F_DESC"
 
+    msg_section "LINKED SERVICES"
+    if (( ${#F_SERVICES[@]} == 0 )); then msg_dim "  none"; fi
+    if (( ${#F_SERVICES[@]} )); then
+        local cache_line tag host proto port state service product version extra hostname ls le lq fs fe hist match cache_ok=0
+        local -a SF
+        _svc_ensure >/dev/null 2>&1 && cache_ok=1
+        for e in "${F_SERVICES[@]}"; do
+            match=0
+            if (( cache_ok )); then
+                while IFS= read -r cache_line; do
+                    _svc_fields "$cache_line"
+                    [[ "$tag" == svc && "${host}:${port}/${proto}" == "$e" ]] && { match=1; break; }
+                done <"$(svc_cache "$LAB_ROOT")"
+            fi
+            if (( ! cache_ok )); then printf '  %s (inventory unavailable)\n' "$e"
+            elif (( ! match )); then printf '  %s (not in current inventory)\n' "$e"
+            else printf '  %s (latest state: %s; source: %s)\n' "$e" "${state:-unknown}" "$ls"; fi
+        done
+    fi
+    (( ${#F_SERVICES[@]} )) && msg_dim "  Keys refer to observations; a link does not establish a vulnerability."
+
     msg_section "NOTES"
     if (( ${#F_NOTES[@]} == 0 )); then msg_dim "  none — urb red findings note ${FND_ID} \"...\""; fi
     for entry in "${F_NOTES[@]}"; do
@@ -137,6 +158,26 @@ red_findings() {
         show|info)
             [[ $# -eq 1 ]] || { msg_err "Usage: urb red findings show F-001"; return 2; }
             red_findings_show "$1" ;;
+        link|unlink)
+            [[ $# -eq 3 && "$2" == --service ]] || { msg_err "Usage: urb red findings ${action} F-001 --service <host:port/protocol>"; return 2; }
+            _fnd_require_id "$1" || return $?
+            local key="$3"
+            if [[ "$action" == link ]]; then
+                _svc_resolve_key "$3" || return $?
+                key="$SVC_KEY"
+            else
+                # Exact stored keys remain removable even when no longer in inventory.
+                fnd_read "$(fnd_file "$LAB_ROOT" "$FND_ID")" || { msg_err "Finding is damaged"; return 1; }
+                local candidate matches=0
+                for candidate in "${F_SERVICES[@]}"; do
+                    if [[ "$candidate" == "$3" || "${candidate##*:}" == "$3" || "${candidate##*:}" == "$3/"* ]]; then key="$candidate"; matches=$((matches+1)); fi
+                done
+                (( matches == 1 )) || { msg_err "Service link not found or ambiguous; specify host:port/protocol."; return 1; }
+            fi
+            _fnd_modify "$LAB_ROOT" "$FND_ID" "$action" "$key"; rc=$?
+            if (( rc == 3 )); then msg_info "$FND_ERR"; return 0; fi
+            (( rc == 0 )) || { msg_err "$FND_ERR"; return "$rc"; }
+            msg_ok "${action}: ${FND_ID} ${key}" ;;
         status|set)
             [[ $# -eq 2 ]] || { msg_err "Usage: urb red findings status F-001 <state>  (${FND_STATUSES[*]})"; return 2; }
             _fnd_require_id "$1" || return $?

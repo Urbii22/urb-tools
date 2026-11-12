@@ -218,12 +218,33 @@ con los mismos argumentos, opciones, salida y códigos que la CLI completa:
 | `target ...` | `urb red target ...` |
 | `lab ...` | `urb red lab ...` |
 | `status ...` | `urb red status ...` |
+| `report ...` | `urb red report ...` |
 
 Por ejemplo, `scan quick versions --dry-run`, `findings show F-001` y
 `lab use demo`. Los atajos admiten el mismo autocompletado que `urb red`.
 Si un nombre ya es un comando, alias, función o reservado de Zsh, RED lo
 conserva y avisa: utiliza la sintaxis completa indicada en el aviso. Fuera de
 RED no se instalan estos atajos. `urblab` sigue cambiando el directorio de la shell.
+
+### Flujo de investigación RED v0.2
+
+`urb red findings link F-001 --service 8080` vincula el hallazgo con una
+observación del inventario. Si el puerto es ambiguo, especifica
+`host:puerto/protocolo`. `urb red findings show F-001` muestra las claves y
+`urb red findings unlink F-001 --service host:puerto/protocolo` elimina el
+vínculo incluso si la observación ya no está disponible. La relación conserva
+solo la clave, no copia datos del servicio ni implica una vulnerabilidad.
+
+`urb red scans diff S-001 S-003` compara los XML existentes sin escanear: muestra
+hosts, cambios explícitos de estado, servicio y versión, y puertos no observados.
+Una ausencia no equivale a cerrado; perfiles distintos o resultados parciales
+limitan la comparación.
+
+`urb red report preview` muestra Markdown basado en los datos del laboratorio.
+`urb red report generate [--output <ruta>]` crea un informe nuevo: por defecto
+en `reports/` con nombre temporal único. Nunca sobrescribe un destino existente
+ni el `report.md` editable. Los informes y la comparación requieren Python 3
+con su biblioteca estándar y no hacen conexiones de red.
 Perfil para laboratorios sobre la misma infraestructura de God Mode:
 
 - Tema rojo y etiqueta `URB RED`.

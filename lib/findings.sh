@@ -128,7 +128,7 @@ fnd_unlock() {
 fnd_read() {
     local f="$1" line k v base
     F_ID="" F_TITLE="" F_STATUS="" F_CREATED="" F_UPDATED="" F_DESC=""
-    F_NOTES=() F_LOGS=() F_EVIDENCE=() F_LINES=() F_DAMAGED=0 F_PROBLEM=""
+    F_NOTES=() F_LOGS=() F_EVIDENCE=() F_SERVICES=() F_LINES=() F_DAMAGED=0 F_PROBLEM=""
     [[ -f "$f" && -r "$f" ]] || { F_DAMAGED=1; F_PROBLEM="unreadable file"; return 1; }
     while IFS= read -r line || [[ -n "$line" ]]; do
         F_LINES+=("$line")
@@ -148,6 +148,7 @@ fnd_read() {
             note)     F_NOTES+=("$v") ;;
             log)      F_LOGS+=("$v") ;;
             evidence) F_EVIDENCE+=("$v") ;;
+            service_link) F_SERVICES+=("$v") ;;
             *) : ;;   # claves reservadas/futuras: se conservan en F_LINES
         esac
     done <"$f"
@@ -258,6 +259,17 @@ _fnd_modify() {
                 esac
             done
             out+=("log=${now}|status ${old} -> ${val}") ;;
+        link|unlink)
+            local found=0 item
+            for item in "${F_SERVICES[@]}"; do [[ "$item" == "$val" ]] && found=1; done
+            if [[ "$op" == link && $found == 1 ]]; then fnd_unlock; FND_ERR="service already linked to ${id}"; return 3; fi
+            if [[ "$op" == unlink && $found == 0 ]]; then fnd_unlock; FND_ERR="service is not linked to ${id}"; return 1; fi
+            for line in "${F_LINES[@]}"; do
+                [[ "$op" == unlink && "$line" == "service_link=$val" ]] && continue
+                if [[ "$line" == updated=* ]]; then out+=("updated=${now}"); else out+=("$line"); fi
+            done
+            [[ "$op" == link ]] && out+=("service_link=${val}")
+            out+=("log=${now}|service ${op}: ${val}") ;;
         note|evidence)
             if [[ "$op" == "evidence" ]]; then
                 local e; for e in "${F_EVIDENCE[@]}"; do

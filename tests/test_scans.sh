@@ -41,6 +41,87 @@ _run() {
     : >"${d}/${base}.gnmap"
 }
 
+test_investigation_links_and_reports() {
+    command -v python3 >/dev/null || return 0
+    _newlab
+    _run t_default_20261110-090000 1794300000 1 "127.0.0.1|tcp|8080|open|http|Server|1" "127.0.0.2|tcp|8080|open|http|Server|1"
+    _URB red findings add "Check HTTP" >/dev/null
+    assert_status 1 _URB red findings link F-001 --service 8080
+    assert_status 1 _URB red findings link F-001 --service 9999
+    assert_status 0 _URB red findings link F-001 --service 127.0.0.1:8080/tcp
+    assert_status 0 _URB red findings link F-001 --service 127.0.0.1:8080/tcp
+    assert_eq "$(grep -c '^service_link=' "$(_LAB)/findings/F-001.finding")" 1
+    assert_contains "$(_URB red findings show F-001)" '127.0.0.1:8080/tcp'
+    local out; out="$(_URB red report preview)"
+    assert_contains "$out" 'Check HTTP'
+    assert_contains "$out" 'Evidence: none linked'
+    assert_contains "$out" '127.0.0.1:8080/tcp'
+    local original; original="$(cat "$(_LAB)/report.md")"
+    assert_status 0 _URB red report generate --output "$HOME/result.md"
+    assert_status 1 _URB red report generate --output "$HOME/result.md"
+    assert_eq "$(cat "$(_LAB)/report.md")" "$original"
+    assert_status 0 _URB red report generate
+    assert_status 0 _URB red findings unlink F-001 --service 127.0.0.1:8080/tcp
+    assert_not_contains "$(cat "$(_LAB)/findings/F-001.finding")" 'service_link=127.0.0.1:8080/tcp'
+}
+
+test_investigation_diff_observations() {
+    command -v python3 >/dev/null || return 0
+    _newlab
+    mkdir -p "$HOME/mockbin"
+    printf '#!/bin/sh\ntouch "$HOME/network-called"\nexit 99\n' >"$HOME/mockbin/nmap"
+    chmod +x "$HOME/mockbin/nmap"
+    export PATH="$HOME/mockbin:$PATH"
+    _run t_quick_20261110-090000 1794300000 1 "127.0.0.1|tcp|80|open|http|Server|1" "127.0.0.1|tcp|22|open|ssh||"
+    _run t_full_20261111-090000 1794390000 1 "127.0.0.1|tcp|80|closed|https|Server|2" "127.0.0.1|tcp|443|open|https||"
+    local out; out="$(_URB red scans diff S-001 S-002)"
+    assert_contains "$out" 'explicit state change | open | closed'
+    assert_contains "$out" 'not observed after | open | not observed'
+    assert_contains "$out" 'newly observed open'
+    assert_contains "$out" 'UNCERTAIN'
+    assert_contains "$out" 'version | Server 1 | Server 2'
+    assert_contains "$out" 'service identification | http | https'
+    _URB red report preview >/dev/null
+    [[ ! -e "$HOME/network-called" ]] || _fail "investigation unexpectedly ran nmap"
+    printf 'broken' >"$(_LAB)/scans/t_full_20261111-090000.xml"
+    assert_status 1 _URB red scans diff S-001 S-002
+}
+
+test_investigation_empty_missing_evidence_and_partial() {
+    command -v python3 >/dev/null || return 0
+    _newlab
+    local out
+    out="$(_URB red report preview)"
+    assert_contains "$out" 'No scans recorded'
+    assert_contains "$out" 'No findings recorded'
+    _run t_default_20261110-090000 1794300000 1 "127.0.0.1|tcp|80|open|http||"
+    _run t_default_20261111-090000 1794390000 0 "127.0.0.1|tcp|80|closed|http||"
+    out="$(_URB red scans diff S-001 S-002)"
+    assert_contains "$out" 'UNCERTAIN'
+    _URB red findings add "Evidence check" >/dev/null
+    printf 'evidence' >"$(_LAB)/evidence/check.txt"
+    _URB red findings evidence F-001 "$(_LAB)/evidence/check.txt" >/dev/null
+    rm "$(_LAB)/evidence/check.txt"
+    assert_contains "$(_URB red report preview)" 'missing or outside lab'
+    assert_contains "$(_URB red report preview)" 'Scan quality:'
+}
+
+test_investigation_concurrent_links_and_stale_key() {
+    command -v python3 >/dev/null || return 0
+    _newlab
+    _run t_default_20261110-090000 1794300000 1 "127.0.0.1|tcp|80|open|http||" "127.0.0.1|tcp|443|open|https||"
+    _URB red findings add "Legacy compatible" >/dev/null
+    _URB red services >/dev/null
+    _URB red findings link F-001 --service 80 >/dev/null & local p1=$!
+    _URB red findings link F-001 --service 443 >/dev/null & local p2=$!
+    wait "$p1" || _fail 'first concurrent link failed'
+    wait "$p2" || _fail 'second concurrent link failed'
+    assert_eq "$(grep -c '^service_link=' "$(_LAB)/findings/F-001.finding")" 2
+    rm "$(_LAB)/scans/t_default_20261110-090000.xml"
+    assert_contains "$(_URB red findings show F-001)" 'not in current inventory'
+    assert_status 0 _URB red findings unlink F-001 --service 127.0.0.1:80/tcp
+}
+
 test_scans_index_existing_runs_by_time_and_stable_ids() {
     _newlab
     # Escaneos "antiguos" sin índice, creados en desorden

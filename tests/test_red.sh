@@ -19,7 +19,7 @@ MOCK
     local out shell_dir="$URB_HOME/godmode/zsh" god_dir="$URB_HOME/godmode"
     out="$(PATH="$HOME/mockbin:$PATH" URB_HOME="$HOME/mock-urb" URB_GOD_DIR="$god_dir" \
         ZDOTDIR="$shell_dir" URB_PROFILE=red URB_PROFILE_TAG=RED URB_GOD_GREETED=1 \
-        zsh -i -c 'scan quick "two words" --dry-run; print "rc=$?"; recon initial; print "rc=$?"; whence -w services; alias findings; print "completion=${_comps[scan]}"; print "conflict_completion=${_comps[services]-}"' 2>&1)"
+        zsh -i -c 'scan quick "two words" --dry-run; print "rc=$?"; recon initial; print "rc=$?"; report preview; whence -w services; alias findings; print "completion=${_comps[scan]}"; print "report_completion=${_comps[report]}"; print "conflict_completion=${_comps[services]-}"' 2>&1)"
     assert_contains "$out" "<red>"
     assert_contains "$out" "<recon>"
     assert_contains "$out" "<two words>"
@@ -29,6 +29,9 @@ MOCK
     assert_contains "$out" "findings='echo personal'"
     assert_contains "$out" "use 'urb red services'"
     assert_contains "$out" "completion=_urb_context_complete"
+    assert_contains "$out" "report_completion=_urb_context_complete"
+    assert_contains "$out" "<report>"
+    assert_contains "$out" "<preview>"
     assert_not_contains "$out" "conflict_completion=_urb_context_complete"
     out="$(URB_GOD_DIR="$URB_HOME/godmode" ZDOTDIR="$URB_HOME/godmode/zsh" URB_PROFILE=god URB_PROFILE_TAG=GOD URB_GOD_GREETED=1 zsh -i -c 'whence -w recon; print "completion=${_comps[recon]-}"' 2>&1)"
     assert_not_contains "$out" "recon: function"

@@ -2,6 +2,26 @@
 
 Flujos completos, de principio a fin. Todos los comandos existen tal cual en la CLI. La referencia de cada comando está en [COMMANDS.md](COMMANDS.md) (`urb manual`).
 
+### Investigación hasta el informe
+
+Dentro de RED, selecciona el laboratorio y utiliza escaneos existentes:
+
+```bash
+lab use demo
+scans
+services
+findings add "Investigar HTTP"
+findings link F-001 --service 127.0.0.1:8080/tcp
+findings show F-001
+scans diff S-001 S-003
+report preview
+report generate
+```
+
+Usa IDs y puertos realmente presentes. Fuera de RED, antepone `urb red` a
+cada comando. Un puerto no observado no se considera cerrado, y un vínculo no
+demuestra una vulnerabilidad. El informe nuevo se guarda en `reports/`.
+
 > Usa estos flujos solo contra sistemas propios o con autorización explícita. Los ejemplos con `127.0.0.1` funcionan en tu propia máquina, sin otra máquina virtual.
 
 ---

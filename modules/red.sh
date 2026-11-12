@@ -18,7 +18,7 @@ _URB_RED_LOADED=1
 
 # Ayuda por secciones: 'urb help red' muestra todas; 'urb help red <sección>'
 # solo una. La sección recon se genera desde commands/red-recon.spec.
-RED_HELP_SECTIONS=(shell lab target recon scans services findings notes context)
+RED_HELP_SECTIONS=(shell lab target recon scans services findings notes report context)
 
 _red_help_section() {
     case "$1" in
@@ -29,7 +29,7 @@ ${C_BOLD}SHELL${C_RESET}
   urb red --kill [--yes]          End the URB Red session (God Mode is not affected)
   urb red --session               Show whether a URB Red session is running
   In RED: scan = recon; recon, services, scans, findings, notes, target,
-  lab and status run the corresponding 'urb red' command directly.
+  lab, report and status run the corresponding 'urb red' command directly.
   Existing commands take precedence; on conflict use 'urb red <command>'.
 EOF
         ;;
@@ -63,6 +63,7 @@ EOF
 ${C_BOLD}SCANS${C_RESET} (nmap results already saved in <lab>/scans/; nothing is re-run)
   urb red scans [list]                          Scans with stable IDs (S-001...)
   urb red scans show [latest|S-001]             Details, files and ports
+  urb red scans diff S-001 S-002                Compare XML observations without rescanning
   latest = most recent COMPLETE scan (interrupted or failed scans are not used)
 EOF
         ;;
@@ -79,6 +80,8 @@ ${C_BOLD}FINDINGS${C_RESET} (one file per finding in <lab>/findings/)
   urb red findings [list]                       Compact list with a summary
   urb red findings add "<title>" [--desc "<text>"] [--status <state>]
   urb red findings show F-001                   Details, notes, evidence and history
+  urb red findings link F-001 --service 8080    Link an observed service key
+  urb red findings unlink F-001 --service 8080  Remove the link
   urb red findings status F-001 <state>         Change state (recorded in the history)
   urb red findings note F-001 "<text>"          Timestamped note on that finding
   urb red findings evidence F-001 <file>        Link a file inside the lab (reference only)
@@ -95,6 +98,13 @@ ${C_BOLD}NOTES${C_RESET} (the lab's notes/notes.md)
   urb red notes                                 Show the general notes
   urb red notes add "<text>"                    Append a timestamped line
   urb red notes edit                            Open notes.md in \$EDITOR
+EOF
+        ;;
+        report) cat <<EOF
+${C_BOLD}REPORT${C_RESET} (offline Markdown from recorded lab data)
+  urb red report preview                         Print the report
+  urb red report generate [--output <path>]      Create a new report, never overwrite
+  Default: <lab>/reports/report-<timestamp>.md; report.md remains untouched.
 EOF
         ;;
         context) cat <<EOF
@@ -461,6 +471,7 @@ red_main() {
         scans|scan)         shift; red_scans "$@" ;;
         services|service)   shift; red_services "$@" ;;
         notes|note)         shift; red_notes "$@" ;;
+        report)             shift; red_report "$@" ;;
         -h|--help|help)     red_help ;;
         *) msg_err "Unknown red command: $1"; msg_dim "    See: urb red --help"; return 2 ;;
     esac

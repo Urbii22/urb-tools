@@ -203,6 +203,7 @@ scn_signature() {
     local lab="$1" dir f
     dir="$(scn_dir "$lab")"
     {
+        printf '%s\n' 'inventory-format-v2'
         cat -- "$(scn_index "$lab")" 2>/dev/null
         for f in "$dir"/*.xml; do [[ -f "$f" ]] && stat -c '%n %s %Y' -- "$f"; done
     } | cksum | cut -d' ' -f1

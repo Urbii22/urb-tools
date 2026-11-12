@@ -258,7 +258,15 @@ Dentro funcionan los atajos estándar de tmux: `Ctrl+B c` abre una ventana nueva
 
 ---
 
-## URB Red (`urb red`) — v0.1
+## URB Red (`urb red`) — v0.2
+
+El flujo de investigación conecta observaciones con hallazgos mediante
+`findings link F-001 --service 8080`, compara XML existentes con
+`scans diff S-001 S-003` y crea informes Markdown con `report preview` y
+`report generate`. Los comandos cortos funcionan dentro de RED; fuera utiliza
+`urb red`. Una ausencia en un escaneo no demuestra que el puerto esté cerrado
+y un servicio vinculado no implica una vulnerabilidad. Los informes se crean
+en `reports/` sin sobrescribir `report.md`. Consulta el [manual](docs/COMMANDS.md).
 
 URB Red es el primer **perfil especializado** sobre la infraestructura de God Mode, pensado para laboratorios (HTB, THM, VulnHub, laboratorios propios). Es la misma Zsh real dentro de tmux, con estas diferencias:
 

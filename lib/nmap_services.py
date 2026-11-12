@@ -50,10 +50,11 @@ def host_info(host):
     return clean(addr), clean(hostname)
 
 
-def parse_scan(path):
+def parse_scan(path, observed_hosts=None):
     """Devuelve (calidad, observaciones, detalle). Nunca lanza excepciones."""
     obs = []
     finished = False
+    failed = False
     root_ok = False
     hosts = 0
     try:
@@ -64,9 +65,12 @@ def parse_scan(path):
                 continue
             if elem.tag == "finished":
                 finished = True
+                failed = elem.get("exit", "success") != "success"
             elif elem.tag == "host":
                 hosts += 1
                 addr, hostname = host_info(elem)
+                if observed_hosts is not None and addr:
+                    observed_hosts.add(addr)
                 for p in elem.findall("ports/port"):
                     st = p.find("state")
                     sv = p.find("service")
@@ -94,6 +98,8 @@ def parse_scan(path):
         return "invalid", [], "not an nmap XML"
     if not finished:
         return "incomplete", obs, "scan did not finish (no <finished>); %d host(s) read" % hosts
+    if failed:
+        return "incomplete", obs, "nmap reported a failed scan; %d host(s) read" % hosts
     return "ok", obs, "%d host(s)" % hosts
 
 
@@ -118,9 +124,12 @@ def main():
     inventory = {}
     out = sys.stdout
     for epoch, _num, sid, path in scans:
-        quality, observations, detail = parse_scan(path)
-        hosts = len({o["host"] for o in observations})
+        observed_hosts = set()
+        quality, observations, detail = parse_scan(path, observed_hosts)
+        hosts = len(observed_hosts)
         out.write("#scan\t%s\t%s\t%d\t%s\n" % (sid, quality, hosts, clean(detail)))
+        for host in sorted(observed_hosts):
+            out.write("#host\t%s\t%s\n" % (sid, host))
         for o in observations:
             if not o["host"] or not o["port"] or not o["proto"]:
                 continue

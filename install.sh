@@ -113,7 +113,7 @@ ok "Bash ${BASH_VERSION}"
 REQUIRED=("ip:iproute2" "ss:iproute2" "ps:procps" "df:coreutils" "awk:mawk" "sed:sed" "find:findutils" "tput:ncurses-bin")
 OPTIONAL=("nmap:nmap" "fzf:fzf" "figlet:figlet" "curl:curl" "ping:iputils-ping" "less:less" "tmux:tmux" "zsh:zsh" "python3:python3")
 # God Mode (urb god): solo necesita tmux y zsh; sin ellos, el resto funciona igual
-GOD_FILES=(bin/urb-help lib/engine.sh modules/serve.sh commands/red-recon.spec commands/serve.spec docs/COMMANDS.md docs/EXAMPLES.md godmode/god.sh godmode/session.sh modules/sessions.sh lib/findings.sh modules/findings.sh lib/scans.sh lib/nmap_services.py modules/inventory.sh godmode/tmux.conf godmode/zsh/.zshenv godmode/zsh/.zshrc godmode/hud/status.sh godmode/animations/fx.sh godmode/themes/urb.theme godmode/themes/red.theme godmode/profiles/god.profile godmode/profiles/red.profile lib/lab.sh lib/diagnose.sh modules/red.sh)
+GOD_FILES=(bin/urb-help lib/engine.sh modules/serve.sh commands/red-recon.spec commands/serve.spec docs/COMMANDS.md docs/EXAMPLES.md godmode/god.sh godmode/session.sh modules/sessions.sh lib/findings.sh modules/findings.sh lib/scans.sh lib/nmap_services.py lib/investigation.py modules/inventory.sh godmode/tmux.conf godmode/zsh/.zshenv godmode/zsh/.zshrc godmode/hud/status.sh godmode/animations/fx.sh godmode/themes/urb.theme godmode/themes/red.theme godmode/profiles/god.profile godmode/profiles/red.profile lib/lab.sh lib/diagnose.sh modules/red.sh)
 missing_req=() missing_opt=() pkgs=()
 for e in "${REQUIRED[@]}"; do has "${e%%:*}" || { missing_req+=("${e%%:*}"); pkgs+=("${e#*:}"); }; done
 for e in "${OPTIONAL[@]}"; do has "${e%%:*}" || { missing_opt+=("${e%%:*}"); pkgs+=("${e#*:}"); }; done
@@ -224,6 +224,8 @@ verify_tree() {
     if has python3; then
         python3 -I -c 'import ast,sys; ast.parse(open(sys.argv[1]).read())' "${dir}/lib/nmap_services.py" 2>/dev/null \
             || { err "Verification failed: syntax error in lib/nmap_services.py"; return 1; }
+        python3 -I -c 'import ast,sys; ast.parse(open(sys.argv[1]).read())' "${dir}/lib/investigation.py" 2>/dev/null \
+            || { err "Verification failed: syntax error in lib/investigation.py"; return 1; }
     fi
     "${dir}/bin/urb" --no-color version >/dev/null 2>&1 || { err "Verification failed: ${dir}/bin/urb does not run"; return 1; }
     "${dir}/bin/urb" --no-color god --help >/dev/null 2>&1 || { err "Verification failed: 'urb god --help' does not run"; return 1; }
