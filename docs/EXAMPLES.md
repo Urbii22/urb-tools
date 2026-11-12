@@ -2,6 +2,30 @@
 
 Flujos completos, de principio a fin. Todos los comandos existen tal cual en la CLI. La referencia de cada comando está en [COMMANDS.md](COMMANDS.md) (`urb manual`).
 
+### BLUE: laboratorio SOC sin red
+
+Abre `urb blue` y ejecuta dentro del perfil (sustituye la ruta por la del
+repositorio):
+
+```bash
+workspace new soc-demo
+ingest windows ~/urb-tools/tests/fixtures/blue_windows.csv
+ingest linux ~/urb-tools/tests/fixtures/blue_linux.log --year 2026 --tz UTC
+sources
+events --id 4625
+detect rules
+detect run
+alerts
+alerts show A-001
+alerts status A-001 investigating
+cases new "Revisar autenticaciones"
+cases link C-001 --alert A-001
+cases show C-001
+```
+
+`Ctrl+B d` desacopla la sesión; `urb blue` reconecta. Una coincidencia de regla
+es una señal para investigar y no confirma un incidente.
+
 ### Investigación hasta el informe
 
 Dentro de RED, selecciona el laboratorio y utiliza escaneos existentes:

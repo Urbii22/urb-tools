@@ -36,7 +36,7 @@ DASH_SECTIONS=(
 DASH_ITEMS=(
     "ENV|G|GOD MODE|Productivity shell: zsh + tmux + HUD|env|god|ready"
     "ENV|R|RED MODE|Offensive labs: target, workspace, red HUD|env|red|ready"
-    "ENV|B|BLUE MODE|Blue Team environment|env|blue|soon"
+    "ENV|B|BLUE MODE|Offline SOC investigation|env|blue|ready"
     "ENV|Z|NORMAL SHELL|Your plain zsh: no URB theme or HUD|env|zsh|ready"
     "TOOLS|1|RECON|Network Scanning (nmap)|tool|scan_menu|ready"
     "TOOLS|2|NETWORK|Network Discovery|tool|network_menu|ready"
@@ -44,7 +44,7 @@ DASH_ITEMS=(
     "TOOLS|4|LOGS|Security Log Analysis|tool|logs_menu|ready"
     "TOOLS|5|CTF|Laboratory Management|tool|ctf_menu|ready"
     "SYS|6|SETTINGS|Configuration|tool|settings_menu|ready"
-    "SYS|S|SESSIONS|GOD / RED sessions: state and reconnect|sys|sessions|ready"
+    "SYS|S|SESSIONS|GOD / RED / BLUE sessions: state and reconnect|sys|sessions|ready"
     "SYS|H|HELP|Commands, keys and manual|sys|help|ready"
     "SYS|Q|EXIT|Close URB Terminal|sys|exit|ready"
 )

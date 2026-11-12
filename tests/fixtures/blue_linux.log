@@ -1,0 +1,4 @@
+2026-11-12T10:10:00+00:00 linux sshd[1]: Failed password for alice from 192.0.2.20 port 4000 ssh2
+2026-11-12T10:12:00+00:00 linux sshd[2]: Accepted password for bob from 192.0.2.21 port 4001 ssh2
+Nov 12 10:15:00 linux sshd[3]: Failed password for alice from 192.0.2.20 port 4002 ssh2
+malformed line

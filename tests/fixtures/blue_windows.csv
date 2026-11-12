@@ -1,0 +1,11 @@
+Timestamp,EventID,Host,User,IP,Message
+2026-11-12T10:00:00Z,4625,WIN-LAB,alice,192.0.2.10,Failed logon
+2026-11-12T10:01:00Z,4625,WIN-LAB,alice,192.0.2.10,Failed logon
+2026-11-12T10:02:00Z,4625,WIN-LAB,alice,192.0.2.10,Failed logon
+2026-11-12T10:03:00Z,4625,WIN-LAB,alice,192.0.2.10,Failed logon
+2026-11-12T10:04:00Z,4625,WIN-LAB,alice,192.0.2.10,Failed logon
+2026-11-12T10:05:00Z,4624,WIN-LAB,bob,192.0.2.11,Successful logon
+2026-11-12T11:00:00Z,4625,WIN-LAB,alice,,No source IP
+2026-11-12T12:00:00Z,4625,WIN-LAB,alice,192.0.2.12,Isolated failure
+2026-11-12T12:30:00Z,4625,WIN-LAB,alice,192.0.2.12,Isolated failure
+2026-11-12T13:00:00Z,not-an-id,WIN-LAB,alice,192.0.2.12,Malformed event

@@ -66,8 +66,20 @@ PROMPT="%F{$URB_C_ELECTRIC}${_urb_tl}%F{$URB_C_PRIMARY}[%B%F{$URB_C_GREEN}${_urb
 if [[ "$_urb_tag" == RED ]]; then
     # RED: laboratorio ▸ objetivo en lugar de usuario@host
     PROMPT+='${_urb_red_seg}'
+elif [[ "$_urb_tag" == BLUE ]]; then
+    PROMPT+='${_urb_blue_seg}'
 else
     PROMPT+="%F{$URB_C_ELECTRIC}${_urb_h}%F{$URB_C_PRIMARY}[%(!.%F{$URB_C_BAD}.%F{$URB_C_WHITE})%n%F{$URB_C_ELECTRIC}@%F{$URB_C_WHITE}%m%F{$URB_C_PRIMARY}]"
+fi
+
+if [[ "${URB_PROFILE:-}" == blue ]]; then
+    _urb_blue_ctx() {
+        local file="${XDG_DATA_HOME:-$HOME/.local/share}/urb-tools/state/active-blue" name=""
+        [[ -r "$file" ]] && IFS= read -r name <"$file"
+        [[ "$name" =~ '^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$' ]] || name='no workspace'
+        _urb_blue_seg="%F{$URB_C_ELECTRIC}${_urb_h}%F{$URB_C_PRIMARY}[%F{$URB_C_WHITE}${name}%F{$URB_C_PRIMARY}]"
+    }
+    add-zsh-hook precmd _urb_blue_ctx
 fi
 PROMPT+="%F{$URB_C_ELECTRIC}${_urb_h}%F{$URB_C_PRIMARY}[%F{$URB_C_GREEN}%(5~|%-1~/…/%3~|%~)%F{$URB_C_PRIMARY}]"
 PROMPT+='${vcs_info_msg_0_}'
@@ -134,12 +146,18 @@ _urb_register_context_command() {
         print -u2 -r -- "URB ${URB_PROFILE:u}: '$name' already exists; use 'urb ${URB_PROFILE} $subcommand' instead."
         return
     fi
-    functions[$name]='"${URB_HOME}/bin/urb" red '"$subcommand"' "$@"'
+    functions[$name]='"${URB_HOME}/bin/urb" '"$URB_PROFILE"' '"$subcommand"' "$@"'
     _urb_context_commands+=("$name")
 }
 if [[ "${URB_PROFILE:-}" == red ]]; then
     _urb_register_context_command scan recon
     for _urb_context_name in recon services scans findings notes target lab status report; do
+        _urb_register_context_command "$_urb_context_name" "$_urb_context_name"
+    done
+    unset _urb_context_name
+fi
+if [[ "${URB_PROFILE:-}" == blue ]]; then
+    for _urb_context_name in workspace ingest sources events detect alerts cases status; do
         _urb_register_context_command "$_urb_context_name" "$_urb_context_name"
     done
     unset _urb_context_name
@@ -169,10 +187,42 @@ if (( $+functions[compdef] )); then
         local -a ids lines
         local REPLY line
         if (( CURRENT == 2 )); then
-            compadd -- scan network monitor logs ctf config doctor god red sessions serve manual help version
+            compadd -- scan network monitor logs ctf config doctor god red blue sessions serve manual help version
             return
         fi
         case "${words[2]}" in
+            blue)
+                if (( CURRENT == 3 )); then
+                    compadd -- workspace ingest sources events detect alerts cases status --help --no-anim --kill --check --session
+                else
+                    case "${words[3]}" in
+                        workspace) (( CURRENT == 4 )) && compadd -- new use list status ;;
+                        ingest) if (( CURRENT == 4 )); then compadd -- windows linux; else compadd -- --tz --year; _files; fi ;;
+                        events)
+                            if (( CURRENT == 5 )) && [[ "${words[4]}" == show ]]; then
+                                lines=("${(@f)$("${URB_HOME}/bin/urb" blue events --limit 200 2>/dev/null)}")
+                                for line in "${lines[@]}"; do [[ "$line" == E-[0-9]* ]] && ids+=("${line%% *}"); done
+                                compadd -- "${ids[@]}"
+                            else compadd -- show --id --user --ip --since --limit; fi ;;
+                        detect) compadd -- rules run --threshold --window ;;
+                        alerts)
+                            if (( CURRENT == 5 )) && [[ "${words[4]}" == (show|status) ]]; then
+                                lines=("${(@f)$("${URB_HOME}/bin/urb" blue alerts 2>/dev/null)}")
+                                for line in "${lines[@]}"; do [[ "$line" == A-[0-9]* ]] && ids+=("${line%% *}"); done
+                                compadd -- "${ids[@]}"
+                            else compadd -- list show status pending investigating false_positive confirmed; fi ;;
+                        cases)
+                            if (( CURRENT == 5 )) && [[ "${words[4]}" == (show|link|note|evidence|status|close) ]]; then
+                                lines=("${(@f)$("${URB_HOME}/bin/urb" blue cases list 2>/dev/null)}")
+                                for line in "${lines[@]}"; do [[ "$line" == C-[0-9]* ]] && ids+=("${line%% *}"); done
+                                compadd -- "${ids[@]}"
+                            elif [[ "${words[CURRENT-1]}" == --alert ]]; then
+                                lines=("${(@f)$("${URB_HOME}/bin/urb" blue alerts 2>/dev/null)}")
+                                for line in "${lines[@]}"; do [[ "$line" == A-[0-9]* ]] && ids+=("${line%% *}"); done
+                                compadd -- "${ids[@]}"
+                            else compadd -- list new show link note evidence status close --alert pending investigating false_positive confirmed closed; fi ;;
+                    esac
+                fi ;;
             red)
                 if (( CURRENT == 3 )); then
                     compadd -- lab target status recon findings notes scans services report --no-anim --kill --session --help
@@ -254,7 +304,7 @@ if (( $+functions[compdef] )); then
                 esac ;;
             sessions)
                 if (( CURRENT == 3 )); then compadd -- list info attach kill
-                elif (( CURRENT == 4 )); then compadd -- god red
+                elif (( CURRENT == 4 )); then compadd -- god red blue
                 fi ;;
             god)     compadd -- --no-anim --status --kill --check --help ;;
             network) (( CURRENT == 3 )) && compadd -- summary interfaces routes gateway connections discover ping check ;;
@@ -264,7 +314,7 @@ if (( $+functions[compdef] )); then
             config)  (( CURRENT == 3 )) && compadd -- show path init edit set ;;
             scan)    (( CURRENT == 3 )) && compadd -- profiles results; _files ;;
             help)
-                if (( CURRENT == 3 )); then compadd -- scan network monitor logs ctf config god red sessions serve manual
+                if (( CURRENT == 3 )); then compadd -- scan network monitor logs ctf config god red blue sessions serve manual
                 elif [[ "${words[3]}" == red ]] && (( CURRENT == 4 )); then
                     compadd -- shell lab target recon scans services findings notes report context
                 fi ;;
@@ -275,12 +325,12 @@ if (( $+functions[compdef] )); then
     compdef _urb_complete urb
     # Present the short command as `urb red <subcommand>` to the same completer.
     _urb_context_complete() {
-        local -a words=(urb red "${words[1]}" "${words[@]:1}")
+        local -a words=(urb "${URB_PROFILE}" "${words[1]}" "${words[@]:1}")
         local CURRENT=$(( CURRENT + 2 ))
-        [[ "${words[3]}" == scan ]] && words[3]=recon
+        [[ "${URB_PROFILE}" == red && "${words[3]}" == scan ]] && words[3]=recon
         _urb_complete
     }
-    if [[ "${URB_PROFILE:-}" == red ]] && (( ${#_urb_context_commands} )); then
+    if [[ "${URB_PROFILE:-}" == (red|blue) ]] && (( ${#_urb_context_commands} )); then
         compdef _urb_context_complete "${_urb_context_commands[@]}"
     fi
 fi
@@ -289,6 +339,8 @@ fi
 if [[ -z "${URB_GOD_GREETED:-}" ]]; then
     if [[ "$_urb_tag" == RED ]]; then
         print -P "%F{$URB_C_PRIMARY}◆ URB RED%f %F{$URB_C_DIM}· %F{$URB_C_WHITE}urb red status%F{$URB_C_DIM} · %F{$URB_C_WHITE}urblab%F{$URB_C_DIM} go to lab · %F{$URB_C_WHITE}urb red recon initial%F{$URB_C_DIM} · %F{$URB_C_WHITE}exit%F{$URB_C_DIM} leave%f"
+    elif [[ "$_urb_tag" == BLUE ]]; then
+        print -P "%F{$URB_C_PRIMARY}◆ URB BLUE%f %F{$URB_C_DIM}· %F{$URB_C_WHITE}workspace status%F{$URB_C_DIM} · %F{$URB_C_WHITE}events%F{$URB_C_DIM} · %F{$URB_C_WHITE}exit%F{$URB_C_DIM} leave%f"
     else
         print -P "%F{$URB_C_PRIMARY}◆ URB GOD MODE%f %F{$URB_C_DIM}· %F{$URB_C_WHITE}exit%F{$URB_C_DIM} leave · %F{$URB_C_WHITE}Ctrl+B d%F{$URB_C_DIM} detach · %F{$URB_C_WHITE}urb god --help%f"
     fi

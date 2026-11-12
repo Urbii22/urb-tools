@@ -9,11 +9,11 @@ _sock_path() { printf '%s/tmux-%s/%s' "${TMUX_TMPDIR:-/tmp}" "$(id -u)" "$1"; }
 
 # Sockets únicos para esta prueba (GOD y RED)
 _unique_sockets() {
-    export URB_GOD_SOCKET="urbtest-g-$$-$RANDOM" URB_RED_SOCKET="urbtest-r-$$-$RANDOM"
+    export URB_GOD_SOCKET="urbtest-g-$$-$RANDOM" URB_RED_SOCKET="urbtest-r-$$-$RANDOM" URB_BLUE_SOCKET="urbtest-b-$$-$RANDOM"
 }
 _cleanup_sockets() {
     local s
-    for s in "${URB_GOD_SOCKET:-}" "${URB_RED_SOCKET:-}"; do
+    for s in "${URB_GOD_SOCKET:-}" "${URB_RED_SOCKET:-}" "${URB_BLUE_SOCKET:-}"; do
         [[ "$s" == urbtest-* ]] || continue
         tmux -L "$s" kill-server 2>/dev/null
         rm -f -- "$(_sock_path "$s")"
@@ -32,6 +32,19 @@ _keys_detach() { sleep 2.5; printf '\002d'; sleep 1.5; }
 _keys_exit()   { sleep 2.5; printf 'exit\r'; sleep 1.5; }
 _keys_ctrl_d() { sleep 2.5; printf '\004'; sleep 1.5; }
 _keys_list_then_detach() { sleep 2.5; printf '"$URB_HOME/bin/urb" --no-color sessions > "$HOME/inside.txt"\r'; sleep 2; printf '\002d'; sleep 1.5; }
+
+test_blue_session_is_independent_of_red_and_god() {
+    _have_deps || return 0
+    _unique_sockets
+    tmux -L "$URB_GOD_SOCKET" new-session -d -s god 'sleep 60'
+    tmux -L "$URB_RED_SOCKET" new-session -d -s red 'sleep 60'
+    tmux -L "$URB_BLUE_SOCKET" new-session -d -s blue 'sleep 60'
+    assert_contains "$(_URB sessions info blue)" detached
+    assert_status 0 _URB sessions kill blue --yes
+    tmux -L "$URB_GOD_SOCKET" has-session -t god || _fail 'GOD session affected'
+    tmux -L "$URB_RED_SOCKET" has-session -t red || _fail 'RED session affected'
+    _cleanup_sockets
+}
 
 test_sessions_help_and_arguments() {
     assert_status 0 _URB sessions --help

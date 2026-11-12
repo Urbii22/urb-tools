@@ -14,7 +14,7 @@ _URB_SESSIONS_LOADED=1
 
 sessions_help() {
     cat <<EOF
-${C_BOLD}urb sessions${C_RESET} — URB session manager (God Mode, URB Red)
+${C_BOLD}urb sessions${C_RESET} — URB session manager (GOD, RED, BLUE)
 
 ${C_BOLD}USAGE${C_RESET}
   urb sessions                      List profiles and their session state

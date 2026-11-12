@@ -11,10 +11,10 @@ _dhave() { command -v tmux >/dev/null && command -v zsh >/dev/null && command -v
 _dhave_script() { command -v script >/dev/null; }
 _dsock_path() { printf '%s/tmux-%s/%s' "${TMUX_TMPDIR:-/tmp}" "$(id -u)" "$1"; }
 
-_dsockets() { export URB_GOD_SOCKET="urbtest-dg-$$-$RANDOM" URB_RED_SOCKET="urbtest-dr-$$-$RANDOM"; }
+_dsockets() { export URB_GOD_SOCKET="urbtest-dg-$$-$RANDOM" URB_RED_SOCKET="urbtest-dr-$$-$RANDOM" URB_BLUE_SOCKET="urbtest-db-$$-$RANDOM"; }
 _dcleanup() {
     local s
-    for s in "${URB_GOD_SOCKET:-}" "${URB_RED_SOCKET:-}"; do
+    for s in "${URB_GOD_SOCKET:-}" "${URB_RED_SOCKET:-}" "${URB_BLUE_SOCKET:-}"; do
         [[ "$s" == urbtest-* ]] || continue
         tmux -L "$s" kill-server 2>/dev/null
         rm -f -- "$(_dsock_path "$s")"
@@ -53,7 +53,7 @@ test_dashboard_lists_all_sections_and_options() {
     local cap; cap="$(cat "$HOME/all.txt")"
     local s
     for s in "TERMINAL ENVIRONMENTS" "CYBERSECURITY TOOLS" "SYSTEM " \
-             "GOD MODE" "RED MODE" "BLUE MODE" "COMING SOON" "NORMAL SHELL" \
+             "GOD MODE" "RED MODE" "BLUE MODE" "NORMAL SHELL" \
              "RECON" "NETWORK" "MONITOR" "LOGS" "CTF" "SETTINGS" "SESSIONS" "HELP" "EXIT" \
              "[G]" "[R]" "[B]" "[Z]" "[1]" "[5]" "[6]" "[S]" "[H]" "[Q]" "RESOURCES" "URB Terminal closed"; do
         assert_contains "$cap" "$s"
@@ -63,18 +63,18 @@ test_dashboard_lists_all_sections_and_options() {
     _dscreen_restored "$HOME/all.txt"
 }
 
-test_dashboard_navigation_order_keys_and_blue_disabled() {
+test_dashboard_navigation_order_keys_and_blue_enabled() {
     load_urb
     # shellcheck source=/dev/null
     source "$URB_HOME/lib/dashboard.sh"
     _dash_parse
     local last=$(( ${#DASH_ITEMS[@]} - 1 ))
     assert_eq "${DI_LABEL[2]}" "BLUE MODE"
-    assert_fail dash_selectable 2
+    assert_ok dash_selectable 2
     assert_ok dash_selectable 0
     dash_move 0 1;  assert_eq "$DASH_SEL" 1          # GOD → RED
-    dash_move 1 1;  assert_eq "$DASH_SEL" 3          # RED → NORMAL SHELL (salta BLUE)
-    dash_move 3 -1; assert_eq "$DASH_SEL" 1          # NORMAL SHELL → RED (salta BLUE)
+    dash_move 1 1;  assert_eq "$DASH_SEL" 2
+    dash_move 3 -1; assert_eq "$DASH_SEL" 2
     dash_move "$last" 1; assert_eq "$DASH_SEL" 0     # vuelta al principio
     dash_move 0 -1; assert_eq "$DASH_SEL" "$last"    # vuelta al final
     dash_key_index g; assert_eq "$DASH_KIDX" 0
@@ -94,15 +94,14 @@ test_dashboard_navigation_order_keys_and_blue_disabled() {
     assert_eq "$(printf '%s\n' "${DASH_ROWS[@]}" | grep -c '^I|')" "${#DASH_ITEMS[@]}"
 }
 
-_k_blue() { sleep 2; printf 'b'; sleep 1; printf 'q'; sleep 1; }
-test_dashboard_blue_is_not_launched() {
-    _dhave_script || return 0
+_k_blue() { sleep 2; printf 'b'; sleep 4; printf '\002d'; sleep 2; printf 'q'; sleep 1; }
+test_dashboard_blue_launches_and_detaches() {
+    _dhave || return 0
     _dsockets
     _dpty "$HOME/blue.txt" "--no-color --no-anim" _k_blue
-    assert_contains "$(cat "$HOME/blue.txt")" "BLUE MODE: coming soon, not available yet"
+    assert_contains "$(cat "$HOME/blue.txt")" "BLUE"
     assert_eq "$(_drc "$HOME/blue.txt")" "0"
-    [[ -e "$(_dsock_path urb-blue)" ]] && _fail "a BLUE tmux server must never be started"
-    [[ -e "$URB_HOME/godmode/profiles/blue.profile" ]] && _fail "no placeholder BLUE profile must exist"
+    tmux -L "$URB_BLUE_SOCKET" has-session -t blue 2>/dev/null || _fail "BLUE should remain detached"
     _dcleanup
 }
 
@@ -263,7 +262,7 @@ test_dashboard_red_from_menu_is_isolated_from_god() {
 
 _k_sessions_attach() {
     sleep 2; printf 's'; sleep 1.5
-    printf '\r'; sleep 3.5                      # primer perfil (god): reconectar
+    printf 'j\r'; sleep 3.5                    # BLUE, después GOD: reconectar
     printf 'echo joined > "$HOME/s1"\r'; sleep 1
     printf '\002d'; sleep 2.5
     printf 'q'; sleep 1
@@ -384,10 +383,10 @@ test_start_mode_config_validation() {
     assert_contains "$(cat "$conf")" 'START_MODE="god"'
     assert_status 0 _URB config set START_MODE red
     assert_status 0 _URB config set START_MODE dashboard
-    out="$(_URB config set START_MODE blue 2>&1)"; assert_eq "$?" 2
-    assert_contains "$out" "BLUE MODE is not available yet"
+    assert_status 0 _URB config set START_MODE blue
+    assert_status 0 _URB config set START_MODE dashboard
     out="$(_URB config set START_MODE bogus 2>&1)"; assert_eq "$?" 2
-    assert_contains "$out" "Valid values: dashboard god red"
+    assert_contains "$out" "Valid values: dashboard god red blue"
     assert_status 2 _URB config set START_MODE 'god;id'
     assert_contains "$(cat "$conf")" 'START_MODE="dashboard"'
     # El valor por defecto sigue siendo el dashboard

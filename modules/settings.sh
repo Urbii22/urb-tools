@@ -8,8 +8,8 @@
 [[ -n "${_URB_SETTINGS_LOADED:-}" ]] && return 0
 _URB_SETTINGS_LOADED=1
 
-# Modos de inicio de `urb` (START_MODE). BLUE se añadirá cuando exista su perfil.
-URB_START_MODES=(dashboard god red)
+# Modos de inicio de `urb` (START_MODE).
+URB_START_MODES=(dashboard god red blue)
 
 # Validación de claves con valores cerrados (antes de guardar)
 settings_validate() {
@@ -17,11 +17,7 @@ settings_validate() {
     case "$key" in
         START_MODE)
             for m in "${URB_START_MODES[@]}"; do [[ "$val" == "$m" ]] && return 0; done
-            if [[ "$val" == "blue" ]]; then
-                msg_err "START_MODE=blue: BLUE MODE is not available yet (coming soon)."
-            else
-                msg_err "Invalid START_MODE: '$val'."
-            fi
+            msg_err "Invalid START_MODE: '$val'."
             msg_dim "    Valid values: ${URB_START_MODES[*]}"
             return 2 ;;
     esac
@@ -38,7 +34,7 @@ ${C_BOLD}USAGE${C_RESET}
   urb config init            Create your config file from the defaults (never overwrites)
   urb config edit            Open your config in \$EDITOR (nano / vi fallback)
   urb config set KEY VALUE   Change one value in your config
-  urb config set START_MODE dashboard|god|red
+  urb config set START_MODE dashboard|god|red|blue
                              What plain 'urb' opens (default: dashboard)
   urb doctor                 Check dependencies and environment
 

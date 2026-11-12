@@ -433,3 +433,8 @@ man ls                   # rueda: avanza/retrocede en man (q para salir)
 Los vínculos guardan claves de servicio sin copiar el inventario; la comparación
 lee XML existentes y diferencia estados explícitos de ausencias. Los informes
 Markdown se crean con nombres nuevos y mantienen el `report.md` manual.
+
+# URB Blue v0.1
+
+Workspace SOC offline con importaciones transaccionales SQLite, procedencia de
+fuentes y una regla 4625. El perfil utiliza su propio socket y preserva RED/GOD.

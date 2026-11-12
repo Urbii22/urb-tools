@@ -1,5 +1,55 @@
 # URB-Tools — Manual de comandos
 
+## URB BLUE — análisis SOC offline
+
+`urb blue` abre el perfil BLUE con su propio socket tmux; `urb blue --help`
+enumera los comandos. `urb sessions` y `urb config set START_MODE blue` también
+admiten este perfil. Dentro de BLUE se pueden usar `workspace`, `ingest`,
+`sources`, `events`, `detect`, `alerts`, `cases` y `status` sin prefijo, salvo
+conflictos con comandos personales, que se conservan y se anuncian.
+
+Cada workspace se crea en `~/urb-blue` (configurable con `BLUE_DIR`) con una
+base SQLite y copias privadas de fuentes y evidencias. `workspace new <nombre>`,
+`use <nombre>`, `list` y `status` gestionan el contexto. Los IDs de eventos,
+alertas y casos son locales al workspace y no se reutilizan.
+
+Fuera de BLUE utiliza `urb blue workspace`, `urb blue ingest`, `urb blue sources`,
+`urb blue events`, `urb blue detect`, `urb blue alerts`, `urb blue cases` y
+`urb blue status`.
+
+`ingest windows <archivo> [--tz +01:00]` acepta CSV UTF-8 con cabeceras
+`Timestamp,EventID,Host,User,IP,Message`; Timestamp y EventID son obligatorias.
+Exporta primero los EVTX a CSV: no se leen ficheros EVTX binarios. Para Linux,
+`ingest linux <auth.log> [--tz +01:00] [--year 2026]` admite syslog clásico y
+timestamps ISO. Sin año o zona explícita, un timestamp syslog clásico queda sin
+normalizar. Las fechas ISO sin zona también requieren `--tz`; los originales se
+conservan. La detección exige precisión de segundos; se omiten fechas con más
+de seis decimales para evitar truncar precisión. La copia de origen se identifica
+mediante SHA-256, y cada evento registra fuente y número de registro. Reimportar
+bytes idénticos no crea eventos. Una importación con ajustes temporales distintos
+requiere otro workspace. Las importaciones se confirman en una transacción: si
+se interrumpen no aparecen como completadas. Las copias van a `sources/` y las
+evidencias a `evidence/`; los directorios son privados y las copias de solo lectura.
+
+`events` acepta `--id`, `--user`, `--ip`, `--since` y `--limit`; `--since`
+requiere zona, por ejemplo `2026-11-12T10:00+01:00`. `events show E-001`
+presenta detalle y procedencia. `sources` muestra las fuentes y los rechazos.
+
+`detect run [--threshold 5] [--window 600]` agrupa fallos Windows 4625 por IP
+en ventanas móviles de diez minutos por defecto. Los intervalos de coincidencia
+que comparten eventos se fusionan: una ejecución posterior amplía la alerta
+existente y una unión conserva el ID menor y marca los demás como fusionados.
+Sus IDs y vínculos permanecen consultables. Solo participan eventos con IP y
+hora inequívoca. Cada combinación de umbral y ventana se trata como una
+configuración distinta: cambiarla puede generar otras alertas. Las alertas
+representan coincidencias, no ataques confirmados.
+
+`alerts`, `alerts show A-001` y `alerts status A-001 investigating` permiten
+el triaje. `cases new "título"`, `cases list`, `cases show C-001`, `cases link
+C-001 --alert A-001`, `cases note C-001 "texto"`, `cases evidence C-001 <ruta>`,
+`cases status C-001 <estado>` y `cases close C-001` conservan historial. Estados:
+`pending`, `investigating`, `false_positive`, `confirmed` y, para casos, `closed`.
+
 Referencia completa de todos los comandos de URB-Tools: sintaxis, parámetros, valores por defecto, ejemplos, efectos, ficheros y errores frecuentes.
 
 - Ayuda rápida en la terminal: `urb help`, `urb help <tema>`, `urb help red <sección>` o su acceso directo `urb-help`.

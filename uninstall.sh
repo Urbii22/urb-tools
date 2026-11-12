@@ -56,7 +56,7 @@ is_urb_launcher "$HELP_LAUNCHER" urb-help && found=1
 if (( ! found )); then info "URB-Tools does not seem to be installed for this user. Nothing to do."; exit 0; fi
 
 # God Mode: una sesión abierta NO se cierra (podría tener trabajo en marcha); solo se avisa
-for _p in "God Mode|${URB_GOD_SOCKET:-urb-god}|urb god" "URB Red|${URB_RED_SOCKET:-urb-red}|urb red"; do
+for _p in "God Mode|${URB_GOD_SOCKET:-urb-god}|urb god" "URB Red|${URB_RED_SOCKET:-urb-red}|urb red" "URB Blue|${URB_BLUE_SOCKET:-urb-blue}|urb blue"; do
     IFS='|' read -r _pname _psock _pcmd <<<"$_p"
     if command -v tmux >/dev/null 2>&1 && tmux -L "$_psock" has-session 2>/dev/null; then
         warn "A ${_pname} session is still running. It will NOT be closed: your programs keep running,"

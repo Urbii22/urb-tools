@@ -45,6 +45,14 @@ Nada de lo que aparece en pantalla es simulado: todos los datos salen de `/proc`
 
 ## Instalación
 
+### URB BLUE: investigación SOC offline
+
+`urb blue` abre una Zsh azul con sesión tmux independiente. BLUE organiza
+fuentes, eventos, alertas y casos en workspaces propios, separados de los
+laboratorios RED. Utiliza Python 3 y SQLite de la biblioteca estándar, sin
+servicios externos. Consulta `urb help blue` y el manual para el formato CSV,
+la procedencia y el tratamiento temporal.
+
 ```bash
 git clone https://github.com/Urbii22/urb-tools.git
 cd urb-tools

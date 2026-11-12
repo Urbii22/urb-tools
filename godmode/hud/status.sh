@@ -23,6 +23,7 @@ is_uint "$width" || width=120
 # Paleta (datos, no código): base + tema del perfil
 urb_read_theme "${GOD_DIR}/themes/urb.theme"
 [[ "$hud" == "red" ]] && urb_read_theme "${GOD_DIR}/themes/red.theme"
+[[ "$hud" == "blue" ]] && urb_read_theme "${GOD_DIR}/themes/blue.theme"
 
 c() { printf '#[fg=colour%s]' "$1"; }
 SEP="$(c "${URB_C_SEP:-238}") │ "
@@ -96,6 +97,22 @@ vpn_segment() {
         printf '%s○ VPN off' "$(c "${URB_C_DIM:-242}")"
     fi
 }
+
+if [[ "$hud" == blue ]]; then
+    urb_load_config
+    blue_root="$(cfg BLUE_DIR '~/urb-blue')"
+    [[ "$blue_root" == '~/'* ]] && blue_root="${HOME}/${blue_root#\~/}"
+    blue_state="${XDG_DATA_HOME:-$HOME/.local/share}/urb-tools/state/active-blue"
+    blue_name="" blue_alerts="?" blue_cases="?"
+    [[ -r "$blue_state" ]] && IFS= read -r blue_name <"$blue_state"
+    if [[ "$blue_name" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$ && ! -L "${blue_root}/${blue_name}" && -r "${blue_root}/${blue_name}/.hud" ]]; then
+        read -r blue_alerts blue_cases <"${blue_root}/${blue_name}/.hud"
+        is_uint "$blue_alerts" || blue_alerts="?"
+        is_uint "$blue_cases" || blue_cases="?"
+    else blue_name="none"; fi
+    printf '%sWS %s%s%s ALERTS %s%s%s CASES %s%s#[default]\n' "$(c "${URB_C_LABEL:-75}")" "$(c "${URB_C_WHITE:-255}")" "$blue_name" "$SEP" "$(c "${URB_C_WHITE:-255}")" "$blue_alerts" "$SEP" "$(c "${URB_C_WHITE:-255}")" "$blue_cases"
+    exit 0
+fi
 
 vpn="$(sys_vpn_detect 2>/dev/null | head -n 1)"
 vpn="${vpn%/*}"   # "tun0 10.10.14.5" (sin prefijo CIDR)
