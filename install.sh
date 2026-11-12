@@ -112,7 +112,7 @@ ok "Bash ${BASH_VERSION}"
 REQUIRED=("ip:iproute2" "ss:iproute2" "ps:procps" "df:coreutils" "awk:mawk" "sed:sed" "find:findutils" "tput:ncurses-bin")
 OPTIONAL=("nmap:nmap" "fzf:fzf" "figlet:figlet" "curl:curl" "ping:iputils-ping" "less:less" "tmux:tmux" "zsh:zsh")
 # God Mode (urb god): solo necesita tmux y zsh; sin ellos, el resto funciona igual
-GOD_FILES=(godmode/god.sh godmode/session.sh modules/sessions.sh godmode/tmux.conf godmode/zsh/.zshenv godmode/zsh/.zshrc godmode/hud/status.sh godmode/animations/fx.sh godmode/themes/urb.theme godmode/themes/red.theme godmode/profiles/god.profile godmode/profiles/red.profile lib/lab.sh lib/diagnose.sh modules/red.sh)
+GOD_FILES=(godmode/god.sh godmode/session.sh modules/sessions.sh lib/findings.sh modules/findings.sh godmode/tmux.conf godmode/zsh/.zshenv godmode/zsh/.zshrc godmode/hud/status.sh godmode/animations/fx.sh godmode/themes/urb.theme godmode/themes/red.theme godmode/profiles/god.profile godmode/profiles/red.profile lib/lab.sh lib/diagnose.sh modules/red.sh)
 missing_req=() missing_opt=() pkgs=()
 for e in "${REQUIRED[@]}"; do has "${e%%:*}" || { missing_req+=("${e%%:*}"); pkgs+=("${e#*:}"); }; done
 for e in "${OPTIONAL[@]}"; do has "${e%%:*}" || { missing_opt+=("${e%%:*}"); pkgs+=("${e#*:}"); }; done

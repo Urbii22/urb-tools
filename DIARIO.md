@@ -154,3 +154,46 @@ urb god                           # reconectar GOD → exit → "God Mode off. S
 Si alguna vez una desconexión acaba en `[exited]`, anota el mensaje que imprime `urb` justo después y la salida de `urb sessions`.
 
 **2026-11-12 · Verificado en vivo en Kali (sesiones):** Diego confirma que todo funciona: `urb sessions` (list/info/attach/kill), las ventanas nuevas con el perfil, desconexión y reconexión de GOD y RED, y el aislamiento entre ambos. La desaparición puntual de RED tras `Ctrl+B d` no se ha vuelto a observar; su causa sigue sin confirmarse.
+
+## 2026-11-12 · Fase 3: Findings & Investigation Manager
+
+**Decisiones**
+- **Un fichero por hallazgo** (`<lab>/findings/F-NNN.finding`, líneas `clave=valor`). Si uno se daña, los demás se siguen leyendo; cada cambio reescribe un solo fichero; el ID coincide con el nombre del fichero. Sin SQLite ni dependencias nuevas.
+- **Integridad del formato:** ningún valor admite caracteres de control, así que un texto no puede crear líneas ni claves. La clave termina en el primer `=` y la fecha de `note`/`log` tiene longitud fija, por eso `=` y `|` son seguros en los textos. Un fichero con líneas inválidas, un ID que no coincide, sin título o con un estado desconocido se muestra como `damaged` y **no se modifica**. Las claves desconocidas (reservadas para futuras importaciones: `host`, `port`, `service`, `url`, `source`…) se conservan al reescribir.
+- **IDs:** `max(.seq, mayor ID existente) + 1`, calculado con el bloqueo tomado. El fichero nuevo se publica con `ln` (falla si el destino existe), así que nunca se sobrescribe un hallazgo. `.seq` es monótono mientras esté íntegro: borrar un hallazgo no libera su ID. **Límite de la recuperación:** si se pierde o se corrompe `.seq` (se avisa) se recalcula desde el mayor ID existente; si además se había borrado a mano el hallazgo con el ID más alto, ese número podría volver a usarse (nunca sobre un fichero existente).
+- **Bloqueo:** el enlace simbólico `<lab>/.urb-lock`, cuyo destino es «pid host epoch», se crea de forma atómica junto con su contenido. Un bloqueo es abandonado si su proceso no existe en este host o tiene más de 120 s; antes de borrarlo se vuelve a comprobar que sigue siendo el mismo. Se libera también ante Ctrl+C o un error. Si está ocupado, se espera ~10 s y se falla con un mensaje claro. *Fallo encontrado en las pruebas:* la primera versión (`mkdir` + fichero `owner`) tenía un instante en el que el bloqueo existía sin dueño y otro proceso podía tomarlo por abandonado: con 12 altas simultáneas, 2 fallaban (el `ln` impidió que se pisara nada). La versión con enlace simbólico pasa 12/12.
+- **Notas:** las generales van en el `notes/notes.md` de siempre (una sola fuente; se crea si un laboratorio antiguo no lo tiene; nunca se pierde el contenido existente). Las de cada hallazgo, en su fichero (`note=`), con el historial de estados aparte (`log=`).
+- **Evidencias:** solo referencias internas. Se resuelven con `readlink -f`, la ruta real debe quedar dentro del laboratorio y se guarda relativa a él. Se rechazan los enlaces que salen del laboratorio, las rutas externas, los directorios y los metadatos de URB. `--external` no se implementa.
+- **Estados:** `pending`, `investigating`, `suspected`, `confirmed`, `discarded` y `checked` (alias `potential`, `completed`). `confirmed` significa «verificado con evidencia», no «vulnerabilidad».
+
+| Comprobado automáticamente (WSL) | Pendiente de probar a mano en Kali |
+|---|---|
+| Crear/listar/mostrar, IDs estables y monótonos, estados y alias, notas, evidencias (internas, duplicados, enlaces y rutas externas rechazados) | Uso real durante una investigación |
+| Inyección de campos imposible; textos con `= \| $( )` intactos | Colores de estados en QTerminal |
+| 12 altas y 10 notas simultáneas sin pérdidas; bloqueo abandonado y bloqueo ocupado | `urb red notes edit` con tu `$EDITOR` |
+| Escrituras fallidas sin pérdida de datos; ficheros dañados sin modificar | Uso dentro de `urb red` tras desconectar y reconectar |
+| Aislamiento entre laboratorios, prioridad del directorio, laboratorios antiguos de `urb ctf`, `--no-color` | |
+
+**Prueba en Kali (sin otra máquina virtual: un laboratorio ficticio con un servicio local)**
+
+```bash
+cd ~/urb-tools && git pull && ./install.sh
+urb red lab new demo --target 127.0.0.1
+python3 -m http.server 8080 --bind 127.0.0.1 &      # servicio de prueba local
+urb red recon initial                                # escaneo real a tu propia máquina
+urb red findings add "HTTP 8080 (python http.server)" --desc "Listado de directorios"
+urb red findings add "SSH config" --status suspected
+urb red findings status F-001 investigating
+urb red findings note F-001 "Directory listing visible en /"
+urb red findings evidence F-001 scans/$(ls ~/urb-labs/demo/scans | grep '\.nmap$' | head -n1)
+urb red findings evidence F-001 /etc/passwd          # debe rechazarse (fuera del laboratorio)
+urb red findings status F-002 discarded
+urb red notes add "Enumeración inicial terminada"
+urb red findings                                     # lista + resumen
+urb red findings show F-001
+urb red status                                       # incluye el resumen de hallazgos
+kill %1                                              # parar el servidor de prueba
+# Cerrar la terminal (o reiniciar Kali), abrir otra y repetir: urb red findings → todo sigue ahí
+```
+
+**Limitaciones:** sin edición de título ni descripción (`findings add` los fija; se puede editar el fichero a mano), sin borrado desde la CLI, descripción de una sola línea, sin importación automática desde nmap ni informes (planificado), y las evidencias solo pueden estar dentro del laboratorio.

@@ -155,7 +155,7 @@ test_red_recon_uses_lab_target_and_saves_results() {
     ls "$HOME"/urb-labs/rbox/scans/10.10.10.40_default_*.nmap >/dev/null 2>&1 || _fail ".nmap not saved in lab scans/"
     ls "$HOME"/urb-labs/rbox/scans/10.10.10.40_default_*.gnmap >/dev/null 2>&1 || _fail ".gnmap not saved"
     ls "$HOME"/urb-labs/rbox/scans/*.log >/dev/null 2>&1 && _fail "log should be removed after success"
-    assert_contains "$(_URB red status)" "Scans    1"
+    assert_contains "$(_URB red status)" "Scans     1"
 }
 
 test_red_recon_explicit_target_does_not_overwrite() {

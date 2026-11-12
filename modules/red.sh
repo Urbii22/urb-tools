@@ -43,6 +43,24 @@ ${C_BOLD}RECON${C_RESET}
                                   results go to <lab>/scans/. --target overrides the
                                   saved target for this run only (it is not saved).
 
+${C_BOLD}FINDINGS${C_RESET} (one file per finding in <lab>/findings/)
+  urb red findings [list]                       Compact list with a summary
+  urb red findings add "<title>" [--desc "<text>"] [--status <state>]
+  urb red findings show F-001                   Details, notes, evidence and history
+  urb red findings status F-001 <state>         Change state (recorded in the history)
+  urb red findings note F-001 "<text>"          Timestamped note on that finding
+  urb red findings evidence F-001 <file>        Link a file inside the lab (reference only)
+
+  States: pending · investigating · suspected (hypothesis, not verified)
+          confirmed (verified with evidence; not necessarily a vulnerability)
+          discarded (hypothesis tested and ruled out)
+          checked (check done, nothing found)
+
+${C_BOLD}NOTES${C_RESET} (the lab's notes/notes.md)
+  urb red notes                                 Show the general notes
+  urb red notes add "<text>"                    Append a timestamped line
+  urb red notes edit                            Open notes.md in \$EDITOR
+
 ${C_BOLD}CONTEXT RULES${C_RESET}
   The lab is taken from the current directory (a .urb-lab in it or a parent);
   if there is none, from the lab selected with 'urb red lab use'.
@@ -75,7 +93,7 @@ _red_require_lab() {
     return 1
 }
 
-_red_kv() { printf '  %s%-8s%s %s\n' "$T_LABEL" "$1" "$C_RESET" "$2"; }
+_red_kv() { printf '  %s%-9s%s %s\n' "$T_LABEL" "$1" "$C_RESET" "$2"; }
 
 # --- Laboratorios ------------------------------------------------------------------------
 red_lab() {
@@ -187,6 +205,10 @@ red_status() {
         n="$(find "${LAB_ROOT}/scans" -maxdepth 1 -name '*.nmap' -type f 2>/dev/null | wc -l)"
         latest="$(find "${LAB_ROOT}/scans" -maxdepth 1 -name '*.nmap' -type f -printf '%T@ %f\n' 2>/dev/null | sort -rn | head -n 1 | cut -d' ' -f2-)"
         _red_kv "Scans" "${n}${latest:+  ${T_DIM}(latest: ${latest})${C_RESET}}"
+        if declare -F fnd_counts >/dev/null; then
+            fnd_counts "$LAB_ROOT"
+            _red_kv "Findings" "$(red_findings_summary)"
+        fi
     else
         if [[ "$LAB_ERR" == "selected lab is no longer valid"* ]]; then _red_kv "Lab" "${T_BAD}${LAB_ERR}${C_RESET}"
         else _red_kv "Lab" "${T_DIM}none — urb red lab new <name> --target <ip>${C_RESET}"; fi
@@ -267,6 +289,8 @@ red_main() {
         target)             shift; red_target "$@" ;;
         status)             shift; [[ $# -eq 0 ]] || { msg_err "Usage: urb red status"; return 2; }; red_status ;;
         recon)              shift; red_recon "$@" ;;
+        findings|finding)   shift; red_findings "$@" ;;
+        notes|note)         shift; red_notes "$@" ;;
         -h|--help|help)     red_help ;;
         *) msg_err "Unknown red command: $1"; msg_dim "    See: urb red --help"; return 2 ;;
     esac
@@ -277,6 +301,8 @@ if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
     URB_HOME="$(cd -P -- "$(dirname -- "$(readlink -f -- "$0")")/.." && pwd -P)" || exit 1
     # shellcheck source=../lib/utils.sh
     source "${URB_HOME}/lib/utils.sh" && urb_standalone_init || exit 1
+    # shellcheck source=findings.sh
+    source "${URB_HOME}/modules/findings.sh" || exit 1
     red_main "$@"
     exit $?
 fi

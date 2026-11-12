@@ -27,7 +27,7 @@ de terminal: es una aplicación independiente que se abre con `urb`.
 | **MONITOR** (`urb monitor`) | ✅ operativo | Monitor a pantalla completa: CPU total y por núcleo, RAM, swap, discos y procesos (ordenar por CPU/MEM). `--once` para una instantánea. |
 | **LOGS** (`urb logs`) | ✅ v1 | Fallos de autenticación, eventos SSH, errores del sistema y búsqueda por fechas, usuario, IP o texto. Lee `auth.log`/`syslog` o journald. Resumen con top de IPs y usuarios. |
 | **CTF** (`urb ctf`) | ✅ operativo | Crea laboratorios `scans/ exploits/ evidence/ notes/ report.md`. Si ejecutas `urb scan` dentro de un laboratorio, los resultados van a su `scans/`. |
-| **URB Red** (`urb red`) | ✅ v0.1 | Perfil para laboratorios sobre God Mode: tema rojo; HUD y prompt con laboratorio, objetivo y VPN; objetivo persistente; `recon initial` con diagnóstico de errores. Ver [URB Red](#urb-red-urb-red--v01). |
+| **URB Red** (`urb red`) | ✅ v0.1 | Perfil para laboratorios sobre God Mode: tema rojo; HUD y prompt con laboratorio, objetivo y VPN; objetivo persistente; `recon initial` con diagnóstico de errores; registro de hallazgos y notas. Ver [URB Red](#urb-red-urb-red--v01) y [Hallazgos](#hallazgos-y-notas-urb-red-findings--urb-red-notes). |
 | **God Mode** (`urb god`) | ✅ v1 | Zsh real dentro de un tmux aislado en la misma ventana, con HUD (CPU, RAM, IP, VPN, Git), prompt URB y animaciones de entrada y salida. Ver [God Mode](#god-mode-urb-god). |
 | **SETTINGS** (`urb config`) | ✅ operativo | Ver/editar configuración, activar/desactivar animaciones, motor de menús (propio o `fzf`), `urb doctor`. |
 
@@ -262,6 +262,69 @@ El diagnóstico no lanza pings, consultas ni reintentos: solo lee lo que ya prod
 
 ---
 
+## Hallazgos y notas (`urb red findings` / `urb red notes`)
+
+Un registro de investigación por laboratorio: qué has comprobado, qué sospechas, qué has confirmado y qué has descartado, con notas fechadas y referencias a evidencias. Todo queda dentro del laboratorio, así que al cerrar Kali y volver otro día (o al desconectarte y reconectarte con tmux) sigue ahí. Funciona dentro y fuera de `urb red`: no necesita tmux ni el HUD.
+
+```bash
+urb red findings                                   # lista compacta + resumen
+urb red findings add "HTTP puerto 80" --desc "Apache 2.4; login en /admin"
+urb red findings add "FTP anonymous" --status suspected
+urb red findings show F-001                        # detalle: notas, evidencias, historial
+urb red findings status F-001 investigating
+urb red findings note F-001 "He revisado el formulario de login"
+urb red findings evidence F-001 scans/10.10.10.3_default_20261112-101500.nmap
+
+urb red notes                                      # notas generales (notes/notes.md)
+urb red notes add "He terminado la enumeración inicial"
+urb red notes edit                                 # abre notes.md en $EDITOR
+```
+
+```
+━━ URB RED / FINDINGS · htb-lame ━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  ID       STATUS         TITLE
+  F-001    investigating  HTTP puerto 80
+  F-002    discarded      FTP anonymous
+  F-003    pending        SSH configuration
+
+  3 findings · 1 pending · 1 investigating · 1 discarded
+```
+
+**Estados.** Cada cambio queda en el historial del hallazgo.
+
+| Estado | Significado |
+|---|---|
+| `pending` | Pendiente de revisar |
+| `investigating` | En curso |
+| `suspected` | **Hipótesis**: hay indicios, pero no está verificada (alias: `potential`) |
+| `confirmed` | **Verificado con evidencia**. Confirmado ≠ vulnerabilidad: puede ser una observación cierta sin impacto. El impacto se describe en la descripción o en las notas |
+| `discarded` | Hipótesis comprobada y **refutada** |
+| `checked` | **Comprobación realizada sin hallazgo** (alias: `completed`) |
+
+**Evidencias.** Son referencias, no copias. URB nunca lee, ejecuta, mueve ni modifica el fichero.
+- Debe existir, ser un fichero normal y estar **dentro del laboratorio**.
+- La ruta puede ser relativa al directorio actual o a la raíz del laboratorio.
+- Se resuelven los enlaces simbólicos y se guarda la ruta real, relativa al laboratorio. Un enlace que apunte fuera se rechaza.
+- Las rutas externas no se aceptan: copia antes el fichero a `evidence/`.
+- Los duplicados se detectan aunque se escriban de otra forma.
+- Si una evidencia se borra después, `show` la marca como `(missing)`.
+
+**Almacenamiento** (sin bases de datos ni procesos residentes):
+
+```
+<lab>/findings/F-001.finding   # un fichero por hallazgo, líneas clave=valor (datos, nunca código)
+<lab>/findings/.seq            # contador monótono de IDs
+<lab>/notes/notes.md           # notas generales (el mismo fichero que crea 'urb ctf')
+```
+
+- Los textos no admiten caracteres de control (saltos de línea, tabuladores…), así que no pueden crear líneas ni claves falsas. `=` y `|` sí se permiten.
+- Cada cambio se escribe de forma atómica, protegido por un bloqueo del laboratorio que detecta y libera los bloqueos abandonados.
+- Un hallazgo nuevo nunca sobrescribe a otro.
+- Un fichero dañado se muestra como `damaged` y no se modifica.
+- Los campos que URB no conoce (por ejemplo `port=` o `service=`, para futuras importaciones) se conservan al reescribir.
+
+---
+
 ## Sesiones (`urb sessions`)
 
 Un gestor global de las sesiones de God Mode y URB Red. Funciona desde cualquier terminal, sin activar ninguna de ellas.
@@ -303,8 +366,9 @@ urb-tools/
 │   ├── system.sh         # lectura de datos reales (/proc, ip, df…)
 │   ├── lab.sh            # contexto de laboratorio y objetivo (.urb-lab, active-lab)
 │   ├── diagnose.sh       # diagnóstico de errores (confirmed / possible / unknown)
+│   ├── findings.sh       # hallazgos: formato, bloqueo, IDs, evidencias, notas
 │   └── dashboard.sh      # URB Terminal (dashboard principal)
-├── modules/              # scan, network, monitor, logs, ctf, settings, red, sessions
+├── modules/              # scan, network, monitor, logs, ctf, settings, red, findings, sessions
 ├── godmode/              # URB God Mode (independiente de los módulos)
 │   ├── god.sh            # activación, sesión tmux aislada, salida, --status/--kill/--attach-only
 │   ├── session.sh        # perfiles y consultas de sesión de solo lectura (compartido)
