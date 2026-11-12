@@ -71,8 +71,10 @@ _dash_draw() {
         return 0
     fi
 
-    W=$UI_COLS; (( W > 112 )) && W=112
-    x0=$(( (UI_COLS - W) / 2 + 1 ))
+    # Alineado arriba a la izquierda, con un margen fijo de 1 columna a cada lado
+    local margin=1
+    W=$(( UI_COLS - 2 * margin )); (( W > 112 )) && W=112
+    x0=$(( 1 + margin ))
     (( W >= 90 )) && wide=1
 
     # Alto disponible para el panel de información
@@ -82,14 +84,8 @@ _dash_draw() {
     if (( wide )); then info_h=7; else info_h=8; fi
     (( info_h > avail )) && info_h=$avail
 
-    # Centrado vertical si sobra espacio
-    local total=$(( header_h + res_h + menu_h + foot_h ))
-    (( info_h >= 3 )) && total=$(( total + info_h ))
-    local y_off=$(( (UI_ROWS - total) / 2 ))
-    (( y_off < 0 )) && y_off=0
-
     # ---------- Cabecera ----------
-    row=$(( 1 + y_off ))
+    row=1
     local pulse="$G_DOT" pcol=$T_ACCENT
     if cfg_bool ANIMATIONS 1 && (( tick % 2 )); then pcol=$T_DIM; pulse="$G_RING"; fi
     if (( big )); then
