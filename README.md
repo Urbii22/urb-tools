@@ -27,6 +27,7 @@ de terminal: es una aplicación independiente que se abre con `urb`.
 | **MONITOR** (`urb monitor`) | ✅ operativo | Monitor a pantalla completa: CPU total y por núcleo, RAM, swap, discos y procesos (ordenar por CPU/MEM). `--once` para una instantánea. |
 | **LOGS** (`urb logs`) | ✅ v1 | Fallos de autenticación, eventos SSH, errores del sistema y búsqueda por fechas, usuario, IP o texto. Lee `auth.log`/`syslog` o journald. Resumen con top de IPs y usuarios. |
 | **CTF** (`urb ctf`) | ✅ operativo | Crea laboratorios `scans/ exploits/ evidence/ notes/ report.md`. Si ejecutas `urb scan` dentro de un laboratorio, los resultados van a su `scans/`. |
+| **God Mode** (`urb god`) | ✅ v1 | Zsh real dentro de un tmux aislado en la misma ventana, con HUD (CPU, RAM, IP, VPN, Git), prompt URB y animaciones de entrada y salida. Ver [God Mode](#god-mode-urb-god). |
 | **SETTINGS** (`urb config`) | ✅ operativo | Ver/editar configuración, activar/desactivar animaciones, motor de menús (propio o `fzf`), `urb doctor`. |
 
 Nada de lo que aparece en pantalla es simulado: todos los datos salen de `/proc`, `ip`, `ss`, `df`, `ps`, nmap o los logs reales.
@@ -37,7 +38,7 @@ Nada de lo que aparece en pantalla es simulado: todos los datos salen de `/proc`
 
 - Kali Linux (o cualquier Debian/Ubuntu) con **Bash ≥ 4.4**.
 - Obligatorios (vienen en Kali): `iproute2` (`ip`, `ss`), `procps`, `coreutils`, `awk`, `ncurses-bin` (`tput`).
-- Opcionales: `nmap` (RECON y descubrimiento), `fzf`, `figlet`, `curl`, `iputils-ping`, `less`.
+- Opcionales: `nmap` (RECON y descubrimiento), `fzf`, `figlet`, `curl`, `iputils-ping`, `less`. Para God Mode: `tmux` (≥ 3.0) y `zsh`.
 
 `urb doctor` te dice qué tienes y qué falta.
 
@@ -174,6 +175,47 @@ Cada módulo también puede ejecutarse por separado: `bash modules/network.sh ro
 
 ---
 
+## God Mode (`urb god`)
+
+God Mode convierte la ventana de terminal en la que estás (QTerminal u otra) en un espacio de trabajo avanzado. Sigue siendo **tu Zsh real**: comandos, autocompletado, historial, tuberías, programas interactivos y herramientas de Kali funcionan igual que siempre. Por debajo usa tmux, con un HUD compacto en la barra de estado y el prompt URB.
+
+```bash
+urb god                # activar (o reconectar con una sesión que siga viva)
+urb god --no-anim      # sin animaciones
+urb god --status       # ¿hay una sesión de God Mode abierta?
+urb god --kill         # terminar la sesión (pregunta si hay programas en marcha)
+urb god --check        # comprobar dependencias
+urb god --help
+```
+
+Requisitos: `tmux` (≥ 3.0) y `zsh`. Si faltan, `urb god` te dice cómo instalarlos (`sudo apt install tmux zsh`) y el resto de URB-Tools funciona igual. Kali ya trae Zsh y tmux suele estar disponible; el instalador te ofrece instalar lo que falte.
+
+**Qué verás:** una animación breve con el logo URB y comprobaciones reales (versiones, sesión, directorio), y después tu terminal con:
+- un HUD de una línea con CPU, RAM, IP, VPN (`tun0`/`wg`…), rama de Git del directorio actual y hora. Se refresca cada 2 s y se compacta en ventanas estrechas;
+- el prompt URB (`╭─[GOD]─[usuario@host]─[ruta]─[git:rama*]` / `╰─❯`), con el código de error y los trabajos en segundo plano a la derecha;
+- todo lo demás es terminal, alineada arriba a la izquierda, empezando en el directorio desde el que ejecutaste `urb god`.
+
+**Salir, desconectarse y terminar.** No es lo mismo:
+
+| Acción | Qué pasa con tus programas | Cómo volver |
+|---|---|---|
+| `exit` en la shell | Se cierra la shell. Si era la última, la sesión termina y vuelves a tu terminal normal. | `urb god` abre una sesión nueva |
+| `Ctrl+B d` (desconectar) | **Siguen ejecutándose** en segundo plano | `urb god` reconecta con ellos |
+| Cerrar la ventana de QTerminal | Igual que desconectar: siguen vivos | `urb god` |
+| `urb god --kill` | Se terminan la sesión y todo lo que corre en ella (pide confirmación si hay programas activos) | — |
+
+Dentro funcionan los atajos estándar de tmux: `Ctrl+B c` abre una ventana nueva y `Ctrl+B %` / `Ctrl+B "` dividen el panel, siempre en el directorio actual.
+
+**Aislamiento y seguridad:**
+- Usa un **servidor tmux propio** (socket `urb-god`) con su propia configuración (`godmode/tmux.conf`). Nunca lee ni modifica tu `~/.tmux.conf`, y tus sesiones tmux no se ven afectadas: `urb god --kill` solo cierra la suya.
+- Zsh arranca con un `ZDOTDIR` temporal (`godmode/zsh/`) que **carga tu `~/.zshenv` y tu `~/.zshrc` sin modificarlos** y después aplica el prompt URB. No se toca ni `.zshrc` ni `.bashrc`.
+- Si ya estás dentro de tmux, `urb god` no se anida: te pide que te desconectes primero.
+- Se ejecuta con tu usuario. No da privilegios de root ni ninguna capacidad extra: lo que hagas con `sudo` dentro de God Mode funciona igual que fuera.
+
+**Configuración** (`urb config set CLAVE VALOR`): `ANIMATIONS=0|1`, `GOD_HUD_POSITION=top|bottom` y `GOD_MOUSE=0|1`. Con `GOD_MOUSE=0`, la selección de texto de QTerminal funciona como siempre.
+
+---
+
 ## Arquitectura
 
 ```
@@ -185,6 +227,13 @@ urb-tools/
 │   ├── system.sh         # lectura de datos reales (/proc, ip, df…)
 │   └── dashboard.sh      # URB Terminal (dashboard principal)
 ├── modules/              # scan, network, monitor, logs, ctf, settings
+├── godmode/              # URB God Mode (independiente de los módulos)
+│   ├── god.sh            # activación, sesión tmux aislada, salida, --status/--kill
+│   ├── tmux.conf         # configuración tmux propia (nunca usa ~/.tmux.conf)
+│   ├── zsh/              # ZDOTDIR temporal: carga tu ~/.zshrc + prompt URB
+│   ├── hud/status.sh     # HUD de la barra de estado (datos reales)
+│   ├── animations/fx.sh  # animaciones de entrada y salida
+│   └── themes/urb.theme  # paleta compartida (Bash, Zsh y tmux)
 ├── config/default.conf
 ├── tests/                # runner en Bash puro + fixtures
 ├── install.sh / uninstall.sh
@@ -206,7 +255,7 @@ Para añadir un módulo, crea `modules/<nombre>.sh` con `<nombre>_main` (CLI) y 
 ```bash
 bash tests/run.sh            # todos
 bash tests/run.sh logs       # solo los ficheros que contienen "logs"
-shellcheck -x bin/urb lib/*.sh modules/*.sh install.sh uninstall.sh tests/*.sh
+shellcheck -x bin/urb lib/*.sh modules/*.sh godmode/*.sh godmode/hud/*.sh godmode/animations/*.sh install.sh uninstall.sh tests/*.sh
 ```
 
 ## Hoja de ruta

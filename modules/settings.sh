@@ -80,7 +80,8 @@ urb_doctor() {
     local -a req=("ip:iproute2" "ss:iproute2" "ps:procps" "df:coreutils" "awk:mawk" "tput:ncurses-bin")
     local -a opt=("nmap:nmap:RECON scans, host discovery" "fzf:fzf:alternative menu engine" "figlet:figlet:figlet logo style" \
                   "curl:curl:HTTPS connectivity check" "ping:iputils-ping:ping / gateway checks" "journalctl:systemd:log analysis without auth.log" \
-                  "less:less:log paging" "sudo:sudo:privileged nmap profiles")
+                  "less:less:log paging" "sudo:sudo:privileged nmap profiles" \
+                  "tmux:tmux:God Mode (urb god)" "zsh:zsh:God Mode (urb god)")
     for t in "${req[@]}"; do
         pkg="${t#*:}"; t="${t%%:*}"
         if has_cmd "$t"; then ok=$(( ok + 1 )); printf '  %s%s%s %-12s %srequired%s\n' "$T_OK" "$G_OK" "$C_RESET" "$t" "$T_DIM" "$C_RESET"

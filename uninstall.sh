@@ -53,6 +53,14 @@ is_urb_launcher "$LAUNCHER" && found=1
 [[ -f "${APP_DIR}/${MARKER}" ]] && found=1
 if (( ! found )); then info "URB-Tools does not seem to be installed for this user. Nothing to do."; exit 0; fi
 
+# God Mode: una sesión abierta NO se cierra (podría tener trabajo en marcha); solo se avisa
+GOD_SOCKET="${URB_GOD_SOCKET:-urb-god}"
+if command -v tmux >/dev/null 2>&1 && tmux -L "$GOD_SOCKET" has-session 2>/dev/null; then
+    warn "A God Mode session is still running. It will NOT be closed: your programs keep running,"
+    warn "but its HUD and new windows will stop working once the files are removed."
+    printf '    To end it first:  urb god --kill   (or type exit inside God Mode)\n'
+fi
+
 if (( ! ASSUME_YES )); then
     if ! { : </dev/tty; } 2>/dev/null; then err "No terminal to confirm. Use --yes."; exit 1; fi
     printf '%s[?]%s Remove the urb launcher and %s? [y/N] ' "$YE" "$R" "$APP_DIR" >/dev/tty

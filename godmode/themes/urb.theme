@@ -1,0 +1,21 @@
+# =============================================================================
+#  godmode/themes/urb.theme — Paleta de URB God Mode (colores ANSI 256)
+#  Solo asignaciones simples KEY=número: la leen Bash (animaciones, HUD),
+#  Zsh (prompt) y tmux (vía variables de entorno en tmux.conf).
+#  Coherente con el dashboard de URB-Tools: cian, azul eléctrico y verde.
+# =============================================================================
+URB_C_PRIMARY=51
+URB_C_ELECTRIC=39
+URB_C_DEEP=27
+URB_C_GREEN=48
+URB_C_OK=47
+URB_C_WARN=220
+URB_C_BAD=196
+URB_C_TEXT=252
+URB_C_WHITE=255
+URB_C_LABEL=67
+URB_C_DIM=242
+URB_C_SEP=238
+URB_C_BG=234
+URB_C_BG2=236
+URB_C_INK=16

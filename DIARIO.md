@@ -43,4 +43,35 @@ Pendiente: zsh como shell por defecto (PATH a `~/.local/bin`), qterminal y fuent
 - Actualización transaccional: copia y verifica en `urb-tools.new.<pid>` (ficheros, `bash -n`, `urb version`), mueve la anterior a `urb-tools.old.<pid>`, activa la nueva y verifica a través del lanzador. Si algo falla, restaura la app y el lanzador anteriores; la copia temporal solo se borra al terminar con éxito.
 - Tests: 55/55 (10 del instalador, entre ellos el fallo simulado durante una actualización) · ShellCheck sin avisos.
 - `uninstall.sh` usa la misma validación: ya no borra enlaces ajenos acabados en `/bin/urb` (58/58 tests).
+
+## 2026-11-12 · Fase 2: URB God Mode (`urb god`)
+
+**Arquitectura:** `godmode/god.sh` (proceso independiente; `bin/urb` solo le pasa la orden) → servidor tmux propio (`-L urb-god`, `godmode/tmux.conf`) → Zsh real con `ZDOTDIR=godmode/zsh`, que carga `~/.zshenv` y `~/.zshrc` del usuario sin modificarlos y añade el prompt URB. HUD = barra de estado de tmux (`hud/status.sh`, que reutiliza `lib/system.sh`). Paleta compartida en `themes/urb.theme`. Animaciones en `animations/fx.sh`.
+
+**Semántica:** `exit` cierra la sesión · `Ctrl+B d` (o cerrar la ventana) desconecta y conserva los procesos · `urb god` reconecta · `urb god --kill` termina solo la sesión de God Mode.
+
+| Feature | Código | Tests | Instalado | Probado en vivo |
+|---|---|---|---|---|
+| `urb god` (arranque, reconexión, salida) | ✅ | ✅ | ✅ (HOME temporal) | ✅ WSL en pty (`script`), no en QTerminal |
+| Zsh real (directorio de partida, alias y `.zshrc` del usuario, historial, Ctrl+C) | ✅ | ✅ | ✅ | ✅ WSL |
+| Aislamiento (otro servidor tmux intacto, `.zshrc` sin cambios, sin `~/.tmux.conf`) | ✅ | ✅ | — | ✅ WSL |
+| HUD (CPU, RAM, IP, VPN, Git, hora) | ✅ | ✅ | ✅ | ✅ WSL (VPN activa sin probar) |
+| Animaciones de entrada y salida | ✅ | ✅ | ✅ | ✅ WSL en pty |
+| Instalador y desinstalador (copia, verificación, rollback, aviso de sesión abierta) | ✅ | ✅ | ✅ | ⏳ Kali |
+
+**Pendiente de probar en Kali / QTerminal:**
+
+```bash
+cd ~/urb-tools && git pull && ./install.sh     # ofrecerá instalar tmux si falta
+urb god --check
+urb god                                        # animación, HUD arriba, prompt [GOD]
+#   dentro: ls, Tab (autocompletado), flecha arriba (historial), htop/vim, sudo -v
+#   redimensionar la ventana de QTerminal → el HUD se adapta
+#   Ctrl+B d → "Detached…" → urb god → vuelve a la misma sesión
+#   exit → "God Mode off" y la terminal queda como antes (título, cursor, scroll)
+openvpn <htb.ovpn> → urb god                   # el HUD debe mostrar "● VPN tun0 10.10.x.x"
+urb god --kill
+```
+
+A comprobar en QTerminal: que los glifos (◆ ▌ ╭ ╰ ❯ ✘ ⚙) se vean bien con la fuente de Kali, los colores de 256, y si QTerminal restaura el título de la ventana (`\e[22;0t` / `\e[23;0t`).
 - Pendiente en Kali: `./install.sh` dos veces seguidas, `git pull && ./install.sh` como actualización, y `./install.sh --link`.

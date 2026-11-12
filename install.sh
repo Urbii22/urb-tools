@@ -110,7 +110,9 @@ ok "Bash ${BASH_VERSION}"
 # --- 3. Dependencias -------------------------------------------------------------
 # comando:paquete
 REQUIRED=("ip:iproute2" "ss:iproute2" "ps:procps" "df:coreutils" "awk:mawk" "sed:sed" "find:findutils" "tput:ncurses-bin")
-OPTIONAL=("nmap:nmap" "fzf:fzf" "figlet:figlet" "curl:curl" "ping:iputils-ping" "less:less")
+OPTIONAL=("nmap:nmap" "fzf:fzf" "figlet:figlet" "curl:curl" "ping:iputils-ping" "less:less" "tmux:tmux" "zsh:zsh")
+# God Mode (urb god): solo necesita tmux y zsh; sin ellos, el resto funciona igual
+GOD_FILES=(godmode/god.sh godmode/tmux.conf godmode/zsh/.zshenv godmode/zsh/.zshrc godmode/hud/status.sh godmode/animations/fx.sh godmode/themes/urb.theme)
 missing_req=() missing_opt=() pkgs=()
 for e in "${REQUIRED[@]}"; do has "${e%%:*}" || { missing_req+=("${e%%:*}"); pkgs+=("${e#*:}"); }; done
 for e in "${OPTIONAL[@]}"; do has "${e%%:*}" || { missing_opt+=("${e%%:*}"); pkgs+=("${e#*:}"); }; done
@@ -118,7 +120,11 @@ for e in "${OPTIONAL[@]}"; do has "${e%%:*}" || { missing_opt+=("${e%%:*}"); pkg
 if (( ${#missing_req[@]} == 0 )); then ok "Required dependencies: all present"
 else err "Missing required: ${missing_req[*]}"; fi
 if (( ${#missing_opt[@]} == 0 )); then ok "Optional dependencies: all present"
-else warn "Missing optional: ${missing_opt[*]}"; fi
+else warn "Missing optional: ${missing_opt[*]}"
+     if [[ " ${missing_opt[*]} " == *" tmux "* || " ${missing_opt[*]} " == *" zsh "* ]]; then
+         info "tmux and zsh are only needed for God Mode (urb god); everything else works without them."
+     fi
+fi
 
 if (( ${#pkgs[@]} > 0 )); then
     # Paquetes únicos
@@ -139,7 +145,7 @@ if (( ${#pkgs[@]} > 0 )); then
 fi
 
 # --- 4. Comprobaciones previas (antes de modificar nada) ---------------------------
-for f in bin/urb lib/utils.sh lib/ui.sh lib/system.sh lib/dashboard.sh config/default.conf; do
+for f in bin/urb lib/utils.sh lib/ui.sh lib/system.sh lib/dashboard.sh config/default.conf "${GOD_FILES[@]}"; do
     [[ -f "${SRC_DIR}/${f}" ]] || { err "Incomplete source tree: missing ${f}"; exit 1; }
 done
 
@@ -190,14 +196,21 @@ fi
 # verify_tree DIR [requiere_marcador] → ficheros clave, sintaxis y arranque real
 verify_tree() {
     local dir="$1" need_marker="${2:-1}" f
-    for f in bin/urb lib/utils.sh lib/ui.sh lib/system.sh lib/dashboard.sh config/default.conf; do
+    for f in bin/urb lib/utils.sh lib/ui.sh lib/system.sh lib/dashboard.sh config/default.conf "${GOD_FILES[@]}"; do
         [[ -f "${dir}/${f}" ]] || { err "Verification failed: missing ${f} in ${dir}"; return 1; }
     done
     if (( need_marker )) && [[ ! -f "${dir}/${MARKER}" ]]; then err "Verification failed: missing ${MARKER}"; return 1; fi
-    for f in "${dir}/bin/urb" "${dir}"/lib/*.sh "${dir}"/modules/*.sh; do
+    for f in "${dir}/bin/urb" "${dir}"/lib/*.sh "${dir}"/modules/*.sh "${dir}"/godmode/*.sh "${dir}"/godmode/hud/*.sh "${dir}"/godmode/animations/*.sh; do
         bash -n -- "$f" 2>/dev/null || { err "Verification failed: syntax error in ${f}"; return 1; }
     done
+    # Configuración Zsh de God Mode (solo si zsh está instalado)
+    if has zsh; then
+        for f in "${dir}/godmode/zsh/.zshenv" "${dir}/godmode/zsh/.zshrc"; do
+            zsh -n -- "$f" 2>/dev/null || { err "Verification failed: zsh syntax error in ${f}"; return 1; }
+        done
+    fi
     "${dir}/bin/urb" --no-color version >/dev/null 2>&1 || { err "Verification failed: ${dir}/bin/urb does not run"; return 1; }
+    "${dir}/bin/urb" --no-color god --help >/dev/null 2>&1 || { err "Verification failed: 'urb god --help' does not run"; return 1; }
     return 0
 }
 
@@ -235,20 +248,20 @@ fail() { err "$*"; rollback; exit 1; }
 if (( LINK_MODE )); then
     TARGET_HOME="$SRC_DIR"
     info "Developer mode: launcher will point to ${SRC_DIR}"
-    chmod +x -- "${SRC_DIR}/bin/urb" "${SRC_DIR}"/modules/*.sh 2>/dev/null
+    chmod +x -- "${SRC_DIR}/bin/urb" "${SRC_DIR}"/modules/*.sh "${SRC_DIR}"/godmode/god.sh "${SRC_DIR}"/godmode/hud/status.sh 2>/dev/null
     verify_tree "$SRC_DIR" 0 || exit 1
 else
     # 5a. Preparar y verificar la nueva versión en una carpeta temporal
     STAGING="${APP_DIR}.new.$$"
     mkdir -p -- "$STAGING" || { err "Cannot create ${STAGING}"; exit 1; }
-    if ! cp -R -- "${SRC_DIR}/bin" "${SRC_DIR}/lib" "${SRC_DIR}/modules" "${SRC_DIR}/config" "$STAGING/"; then
+    if ! cp -R -- "${SRC_DIR}/bin" "${SRC_DIR}/lib" "${SRC_DIR}/modules" "${SRC_DIR}/config" "${SRC_DIR}/godmode" "$STAGING/"; then
         rm -rf -- "$STAGING"; err "Copy failed."; exit 1
     fi
     for f in README.md LICENSE install.sh uninstall.sh; do
         [[ -f "${SRC_DIR}/${f}" ]] && cp -- "${SRC_DIR}/${f}" "$STAGING/"
     done
     printf 'installed=%s\nsource=%s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$SRC_DIR" >"${STAGING}/${MARKER}"
-    chmod +x -- "${STAGING}/bin/urb" "${STAGING}"/modules/*.sh 2>/dev/null
+    chmod +x -- "${STAGING}/bin/urb" "${STAGING}"/modules/*.sh "${STAGING}"/godmode/god.sh "${STAGING}"/godmode/hud/status.sh 2>/dev/null
     if ! verify_tree "$STAGING" 1; then
         rm -rf -- "$STAGING"; err "New version not installed; the existing installation was not modified."; exit 1
     fi

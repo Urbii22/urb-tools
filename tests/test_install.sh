@@ -4,11 +4,20 @@
 _APP() { printf '%s' "$HOME/.local/lib/urb-tools"; }
 _LNK() { printf '%s' "$HOME/.local/bin/urb"; }
 
+# Cierra un servidor tmux CREADO POR LA PRUEBA y borra su fichero de socket
+_tmux_cleanup() {
+    local sock="$1"
+    [[ "$sock" == urbtest-* ]] || return 0
+    tmux -L "$sock" kill-server 2>/dev/null
+    rm -f -- "${TMUX_TMPDIR:-/tmp}/tmux-$(id -u)/${sock}"
+    return 0
+}
+
 # Copia del código fuente con una marca, para simular una versión nueva
 _make_source_copy() {
     local dst="$1" tag="$2"
     mkdir -p "$dst"
-    cp -R "$URB_HOME/bin" "$URB_HOME/lib" "$URB_HOME/modules" "$URB_HOME/config" \
+    cp -R "$URB_HOME/bin" "$URB_HOME/lib" "$URB_HOME/modules" "$URB_HOME/config" "$URB_HOME/godmode" \
           "$URB_HOME/install.sh" "$URB_HOME/uninstall.sh" "$dst/"
     printf '# %s\n' "$tag" >>"$dst/config/default.conf"
 }
@@ -196,4 +205,32 @@ test_uninstall_link_mode() {
     assert_eq "$?" 0 "$out"
     [[ ! -e "$(_LNK)" && ! -L "$(_LNK)" ]] || _fail "--link launcher not removed"
     assert_file "$URB_HOME/bin/urb"
+}
+
+test_install_includes_god_mode() {
+    bash "$URB_HOME/install.sh" --yes --no-deps >/dev/null 2>&1
+    local f
+    for f in god.sh tmux.conf zsh/.zshenv zsh/.zshrc hud/status.sh animations/fx.sh themes/urb.theme; do
+        assert_file "$(_APP)/godmode/$f"
+    done
+    [[ -x "$(_APP)/godmode/god.sh" && -x "$(_APP)/godmode/hud/status.sh" ]] || _fail "god scripts not executable"
+    assert_contains "$("$(_LNK)" --no-color god --help)" "urb god --kill"
+    # Reinstalación: God Mode sigue presente; desinstalación: desaparece con la app
+    assert_status 0 bash "$URB_HOME/install.sh" --yes --no-deps
+    assert_file "$(_APP)/godmode/god.sh"
+    assert_status 0 bash "$URB_HOME/uninstall.sh" --yes
+    [[ ! -e "$(_APP)/godmode" ]] || _fail "godmode not removed by uninstall"
+}
+
+test_uninstall_warns_but_keeps_running_god_session() {
+    command -v tmux >/dev/null || return 0
+    bash "$URB_HOME/install.sh" --yes --no-deps >/dev/null 2>&1
+    local sock="urbtest-uninst-$$" out
+    tmux -L "$sock" new-session -d -s god 'sleep 300'
+    out="$(URB_GOD_SOCKET="$sock" bash "$URB_HOME/uninstall.sh" --yes 2>&1)"
+    assert_eq "$?" 0 "$out"
+    assert_contains "$out" "God Mode session is still running"
+    tmux -L "$sock" has-session -t god 2>/dev/null || _fail "uninstall must not kill a running God Mode session"
+    _tmux_cleanup "$sock"
+    return 0
 }

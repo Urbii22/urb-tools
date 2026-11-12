@@ -20,3 +20,6 @@ urb.conf
 *~
 .DS_Store
 Thumbs.db
+
+# Cachés de autocompletado de Zsh
+.zcompdump*
