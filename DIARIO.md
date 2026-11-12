@@ -74,4 +74,6 @@ urb god --kill
 ```
 
 A comprobar en QTerminal: que los glifos (◆ ▌ ╭ ╰ ❯ ✘ ⚙) se vean bien con la fuente de Kali, los colores de 256, y si QTerminal restaura el título de la ventana (`\e[22;0t` / `\e[23;0t`).
+
+**2026-11-12 · Verificado en vivo en Kali:** Diego confirma que `urb god` funciona en su Kali (QTerminal). Sin datos todavía sobre los puntos de detalle (VPN activa en el HUD, título de la ventana): si aparece algún problema, se anota aquí.
 - Pendiente en Kali: `./install.sh` dos veces seguidas, `git pull && ./install.sh` como actualización, y `./install.sh --link`.
