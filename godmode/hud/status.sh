@@ -54,6 +54,30 @@ hud_cpu() {
     cpu_pct "$pt" "$pi" "${t[cpu]}" "${i[cpu]}"
 }
 
+# --- Sesiones URB activas (GOD, RED...): caché de 10 s compartida ----------------------
+# Solo se calcula cuando el indicador cabe. Como mucho consulta tmux una vez cada
+# 10 s (no en cada refresco), y un socket inexistente no genera llamada alguna.
+HUD_SESS_TTL=10
+hud_sessions() {
+    local dir="${XDG_RUNTIME_DIR:-/tmp}/urb-god-${UID}" cache ts="" n="" now tmp
+    cache="${dir}/sessions"
+    now="$(printf '%(%s)T' -1)"
+    if [[ -O "$dir" && -r "$cache" ]] && read -r ts n <"$cache" \
+       && is_uint "$ts" && is_uint "$n" && (( now - ts < HUD_SESS_TTL && now >= ts )); then
+        printf '%s' "$n"; return 0
+    fi
+    SESS_GOD_DIR="$GOD_DIR"
+    # shellcheck source=../session.sh
+    source "${GOD_DIR}/session.sh" 2>/dev/null || return 1
+    n="$(sess_count_alive 2>/dev/null)"
+    is_uint "$n" || return 1
+    if [[ ! -d "$dir" ]]; then mkdir -m 700 -- "$dir" 2>/dev/null || true; fi
+    if [[ -O "$dir" ]]; then
+        tmp="$(mktemp "${cache}.XXXXXX" 2>/dev/null)" && printf '%s %s\n' "$now" "$n" >"$tmp" && mv -f -- "$tmp" "$cache"
+    fi
+    printf '%s' "$n"
+}
+
 hud_git() {
     local path="$1" branch dirty=""
     [[ -d "$path" ]] || return 0
@@ -97,6 +121,9 @@ if [[ "$hud" == "red" ]]; then
         is_uint "$cpu" && out+="${SEP}$(c "${URB_C_LABEL:-131}")CPU $(c "$(pct_colour "$cpu")")${cpu}%"
         out+="${SEP}$(c "${URB_C_LABEL:-131}")RAM $(c "$(pct_colour "$MEM_PCT")")${MEM_PCT}%"
     fi
+    if (( width >= 150 )) && ses="$(hud_sessions)"; then
+        out+="${SEP}$(c "${URB_C_LABEL:-131}")SES $(c "${URB_C_WHITE:-255}")${ses}"
+    fi
     (( width >= 140 )) && out+="${SEP}$(c "${URB_C_PRIMARY:-196}")$(printf '%(%H:%M)T' -1)"
     printf '%s ' "$out"
     exit 0
@@ -120,5 +147,9 @@ out+="${SEP}$(vpn_segment)"
 # Git del directorio del panel activo
 [[ -n "$git_info" ]] && out+="${SEP}$(c "${URB_C_WARN:-220}")git:${git_info}"
 # Hora
+# Sesiones URB activas (solo si cabe)
+if (( width >= 140 )) && ses="$(hud_sessions)"; then
+    out+="${SEP}$(c "${URB_C_LABEL:-67}")SES $(c "${URB_C_WHITE:-255}")${ses}"
+fi
 (( width >= 120 )) && out+="${SEP}$(c "${URB_C_PRIMARY:-51}")$(printf '%(%H:%M)T' -1)"
 printf '%s ' "$out"

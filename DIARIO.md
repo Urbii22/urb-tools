@@ -113,3 +113,42 @@ urb red --kill
 ```
 
 **Limitaciones v0.1:** un solo objetivo por laboratorio; `recon initial` usa solo el perfil `default`; el diagnóstico cubre solo nmap; al reconectar con `urb red` se entra en la sesión existente (con su directorio), y el HUD muestra el laboratorio del directorio del panel activo.
+
+## 2026-11-12 · Sesiones: fallo de tmux, `urb sessions` e indicador SES
+
+**Investigación del informe** («`no such session: =red`» y `[exited]` tras `Ctrl+B d` en RED)
+- **Causa confirmada y corregida — mensaje `no such session: =red`:** `god.sh` configuraba cada sesión nueva con `set-environment`/`set-option -t "=red"`. En tmux 3.6 esos dos comandos **no** aceptan el prefijo `=` (buscan una sesión llamada «=red»), así que fallaban **siempre**, en GOD y en RED. Consecuencia: las ventanas y paneles nuevos (`Ctrl+B c`, divisiones) no heredaban la Zsh ni el entorno del perfil. Corrección: nombre sin `=` (en el socket privado solo hay sesiones nuestras) y comprobación del resultado, sin reintentos.
+- **No reproducido — sesión perdida con `Ctrl+B d`:** en WSL, 5 de 5 desconexiones conservaron la sesión. `Ctrl+B Ctrl+D` también la conserva (tmux ignora esa combinación). `[exited]` solo lo imprime tmux cuando termina la última shell (`exit`, `Ctrl+D`, la shell muere) o cuando la sesión se cierra desde fuera. **La causa exacta del caso observado sigue sin encontrarse.**
+- **Para encontrarla la próxima vez:** `god.sh` informa ahora de cómo terminó cada conexión: desconexión, «Session ended: its last shell exited… or it was closed» o «tmux server ended unexpectedly» (código 1). Si la sesión muere justo al crearse, también lo dice («its shell exited»).
+
+**`urb sessions`** (`modules/sessions.sh`, apoyado en `godmode/session.sh`)
+- `list`, `info`, `attach` (solo reconecta; usa `god.sh --attach-only`) y `kill` (pide confirmación siempre salvo `--yes`; `kill-session` solo en el socket de ese perfil).
+- Estados `attached` / `detached` / `none` / `error`. Un socket huérfano (servidor terminado) cuenta como `none`. Consultar nunca crea sesiones ni servidores.
+- El análisis de perfiles salió de `god.sh` a `godmode/session.sh` para compartirlo, sin cambiar el comportamiento de `urb god`/`urb red`.
+
+**HUD:** `SES n` solo con anchura suficiente (GOD ≥ 140, RED ≥ 150). Caché de 10 s en `$XDG_RUNTIME_DIR/urb-god-$UID/sessions` y ninguna llamada a tmux si no existe el socket.
+
+| Comprobado automáticamente (WSL, pty real) | Pendiente de probar a mano en Kali / QTerminal |
+|---|---|
+| Sin «no such session» al crear; las ventanas nuevas heredan el perfil | Que el aviso no vuelva a aparecer al abrir RED/GOD |
+| Detach conserva la sesión; `exit`, `Ctrl+D` y el cierre externo la terminan con mensaje; la pérdida del servidor da error (código 1) | Repetir varias veces `Ctrl+B d` en RED y anotar si alguna vez aparece `[exited]` |
+| `urb sessions` (estados, info, attach sin crear, kill con confirmación, aislamiento GOD/RED, estado error) | Ver `SES n` en el HUD con la ventana maximizada |
+| Caché del indicador (sin llamadas a tmux dentro de los 10 s) | |
+
+**Guía rápida en Kali**
+
+```bash
+cd ~/urb-tools && git pull && ./install.sh
+urb sessions                      # god none · red none
+urb god                           # crear GOD → Ctrl+B d (desconectar)
+urb red                           # crear RED → Ctrl+B c (ventana nueva: prompt [RED]) → Ctrl+B d
+urb sessions                      # god detached · red detached
+urb sessions info red             # 2 ventanas, paneles con su directorio
+urb sessions attach red           # reconectar → Ctrl+B d
+urb sessions kill red             # pide confirmación → y
+urb sessions                      # red none · god detached (GOD intacta)
+urb sessions attach red           # error: no existe (no se crea)
+urb god                           # reconectar GOD → exit → "God Mode off. Session ended…"
+```
+
+Si alguna vez una desconexión acaba en `[exited]`, anota el mensaje que imprime `urb` justo después y la salida de `urb sessions`.

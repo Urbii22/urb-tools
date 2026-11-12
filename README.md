@@ -262,6 +262,36 @@ El diagnóstico no lanza pings, consultas ni reintentos: solo lee lo que ya prod
 
 ---
 
+## Sesiones (`urb sessions`)
+
+Un gestor global de las sesiones de God Mode y URB Red. Funciona desde cualquier terminal, sin activar ninguna de ellas.
+
+```bash
+urb sessions                    # tabla: perfil, estado, ventanas, paneles, clientes, socket
+urb sessions info red           # detalle: paneles (comando y directorio), clientes, hora de creación
+urb sessions attach red         # reconectar (solo si existe: nunca crea una sesión)
+urb sessions kill red           # terminar (pide confirmación SIEMPRE; --yes para no preguntar)
+```
+
+| Estado | Significado |
+|---|---|
+| `attached` | La sesión existe y hay una terminal conectada |
+| `detached` | La sesión existe en segundo plano: sus programas siguen ejecutándose |
+| `none` | No hay sesión (incluye el caso de un socket huérfano de un servidor ya terminado) |
+| `error` | No se ha podido consultar a tmux (no está instalado, permisos…); se muestra el mensaje |
+
+- Consultar (`urb sessions`, `info`) **nunca crea sesiones ni arranca servidores**.
+- Cada perfil usa su propio socket (`urb-god`, `urb-red`): `kill red` solo cierra RED, y nada afecta a tus propias sesiones tmux.
+
+**Cómo termina una conexión.** Al volver a tu terminal, `urb god` y `urb red` te dicen qué ha pasado:
+- `Detached from …`: te has desconectado (`Ctrl+B d` o has cerrado la ventana). La sesión sigue viva.
+- `… off. Session ended: its last shell exited …`: terminó la última shell de la sesión (`exit`, `Ctrl+D`) o alguien la cerró (`urb sessions kill`, `kill-session`). tmux no permite distinguir entre estos casos.
+- `… tmux server ended unexpectedly`: el servidor tmux murió estando conectado. Es un error (código 1), no una salida normal.
+
+**HUD:** con suficiente anchura (GOD desde 140 columnas, RED desde 150) aparece `SES n`, el número de sesiones URB activas. Se calcula como mucho una vez cada 10 s (caché compartida en `$XDG_RUNTIME_DIR`) y no consulta tmux si no existe el socket. Con menos anchura, se oculta.
+
+---
+
 ## Arquitectura
 
 ```
@@ -274,9 +304,10 @@ urb-tools/
 │   ├── lab.sh            # contexto de laboratorio y objetivo (.urb-lab, active-lab)
 │   ├── diagnose.sh       # diagnóstico de errores (confirmed / possible / unknown)
 │   └── dashboard.sh      # URB Terminal (dashboard principal)
-├── modules/              # scan, network, monitor, logs, ctf, settings, red
+├── modules/              # scan, network, monitor, logs, ctf, settings, red, sessions
 ├── godmode/              # URB God Mode (independiente de los módulos)
-│   ├── god.sh            # activación, sesión tmux aislada, salida, --status/--kill
+│   ├── god.sh            # activación, sesión tmux aislada, salida, --status/--kill/--attach-only
+│   ├── session.sh        # perfiles y consultas de sesión de solo lectura (compartido)
 │   ├── tmux.conf         # configuración tmux propia (nunca usa ~/.tmux.conf)
 │   ├── profiles/         # perfiles visuales: god.profile, red.profile (datos)
 │   ├── zsh/              # ZDOTDIR temporal: carga tu ~/.zshrc + prompt URB/RED + urblab

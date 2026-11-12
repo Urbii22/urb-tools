@@ -34,41 +34,15 @@ GOD_TMUX_BIN="" GOD_ZSH_BIN="" GOD_TMUX_VER="" GOD_ZSH_VER=""
 # --- Perfiles (godmode/profiles/<nombre>.profile) ----------------------------------
 # El perfil define identidad visual y aislamiento: nombre, etiqueta, sesión,
 # socket tmux, tema y HUD. Por defecto "god" (comportamiento de siempre).
-P_PROFILE="god" P_NAME="God Mode" P_TITLE="GOD MODE" P_LABEL="URB GOD" P_TAG="GOD"
-P_CMD="urb god" P_THEME="urb" P_HUD="god"
-GOD_SESSION="god"
-GOD_SOCKET="urb-god"
+# El análisis del perfil y las consultas de sesión viven en godmode/session.sh.
+SESS_GOD_DIR="$GOD_DIR"
+# shellcheck source=session.sh
+source "${GOD_DIR}/session.sh" || { echo "urb god: cannot load session.sh" >&2; exit 1; }
 
-# god_load_profile NOMBRE → lee el perfil como DATOS (claves y valores validados)
+# god_load_profile NOMBRE → perfil (datos validados) + tema del perfil
 god_load_profile() {
-    local name="$1" f line k v ovar
-    [[ "$name" =~ ^[a-z]{1,16}$ ]] || { msg_err "Invalid profile name: ${name}"; return 2; }
-    f="${GOD_DIR}/profiles/${name}.profile"
-    [[ -r "$f" ]] || { msg_err "Unknown profile: ${name}"; return 2; }
-    while IFS= read -r line || [[ -n "$line" ]]; do
-        line="${line%$'\r'}"
-        [[ "$line" =~ ^[[:space:]]*(#|$) ]] && continue
-        [[ "$line" =~ ^(PROFILE_[A-Z]+)=([A-Za-z0-9\ ._-]{1,32})$ ]] || { msg_warn "profile ${name}: ignoring invalid line"; continue; }
-        k="${BASH_REMATCH[1]}"; v="${BASH_REMATCH[2]}"
-        case "$k" in
-            PROFILE_NAME)    P_NAME="$v" ;;
-            PROFILE_TITLE)   P_TITLE="$v" ;;
-            PROFILE_LABEL)   P_LABEL="$v" ;;
-            PROFILE_TAG)     [[ "$v" =~ ^[A-Z]{1,8}$ ]] && P_TAG="$v" ;;
-            PROFILE_CMD)     P_CMD="$v" ;;
-            PROFILE_SESSION) [[ "$v" =~ ^[a-z0-9_-]{1,32}$ ]] && GOD_SESSION="$v" ;;
-            PROFILE_SOCKET)  [[ "$v" =~ ^[A-Za-z0-9_-]{1,64}$ ]] && GOD_SOCKET="$v" ;;
-            PROFILE_THEME)   [[ "$v" =~ ^[a-z]{1,16}$ && -r "${GOD_DIR}/themes/${v}.theme" ]] && P_THEME="$v" ;;
-            PROFILE_HUD)     [[ "$v" =~ ^[a-z]{1,16}$ ]] && P_HUD="$v" ;;
-            *) msg_warn "profile ${name}: unknown key ${k}" ;;
-        esac
-    done <"$f"
-    P_PROFILE="$name"
-    # Socket alternativo por variable de entorno (p. ej. URB_GOD_SOCKET, URB_RED_SOCKET)
-    ovar="URB_${P_TAG}_SOCKET"
-    [[ -n "${!ovar:-}" ]] && GOD_SOCKET="${!ovar}"
-    # Tema del perfil encima de la paleta base
-    [[ "$P_THEME" != "urb" ]] && urb_read_theme "${GOD_DIR}/themes/${P_THEME}.theme"
+    sess_load_profile "$1" || return $?
+    if [[ "$P_THEME" != "urb" ]]; then urb_read_theme "${GOD_DIR}/themes/${P_THEME}.theme"; fi
     return 0
 }
 
@@ -242,7 +216,7 @@ _god_engage_info() {
 }
 
 god_start() {
-    local use_anim=1
+    local use_anim=1 attach_only="${2:-0}"
     [[ "${1:-}" == "--no-anim" ]] && use_anim=0
     _god_anim_enabled || use_anim=0
 
@@ -265,6 +239,13 @@ god_start() {
     ui_term_size
     if (( UI_COLS < 40 || UI_ROWS < 10 )); then
         msg_err "Terminal too small for ${P_NAME} (${UI_COLS}x${UI_ROWS}, minimum 40x10)."
+        return 1
+    fi
+
+    # Modo "solo reconectar" (urb sessions attach): nunca crea una sesión
+    if (( attach_only )) && ! god_session_exists; then
+        msg_err "No ${P_NAME} session to attach to."
+        msg_dim "    Start one with: ${P_CMD}"
         return 1
     fi
 
@@ -302,15 +283,29 @@ god_start() {
             msg_err "Could not start the ${P_NAME} tmux session."
             return 1
         fi
-        # Nuevas ventanas/paneles: también la Zsh del perfil, en el directorio del panel
-        local kv
+        # Nuevas ventanas/paneles: también la Zsh del perfil, en el directorio del panel.
+        # Nota: set-environment/set-option NO aceptan el prefijo "=" de coincidencia
+        # exacta (buscarían una sesión llamada "=red"); en este servidor privado
+        # solo existen nuestras sesiones, así que se usa el nombre tal cual.
+        local kv cfg_err=0
         for kv in "ZDOTDIR=${GOD_DIR}/zsh" "URB_GOD=1" "URB_GOD_DIR=${GOD_DIR}" "URB_HOME=${URB_HOME}" \
                   "URB_USER_ZDOTDIR=${ZDOTDIR:-$HOME}" "URB_PROFILE=${P_PROFILE}" "URB_PROFILE_TAG=${P_TAG}" \
                   "URB_PROFILE_THEME=${P_THEME}" "URB_PROFILE_CMD=${P_CMD}"; do
-            god_tmux set-environment -t "=${GOD_SESSION}" "${kv%%=*}" "${kv#*=}"
+            god_tmux set-environment -t "$GOD_SESSION" "${kv%%=*}" "${kv#*=}" || cfg_err=1
         done
-        god_tmux set-option -t "=${GOD_SESSION}" default-command "$zcmd" >/dev/null
-        [[ "$mouse" == "1" ]] && god_tmux set-option -g mouse on >/dev/null
+        god_tmux set-option -t "$GOD_SESSION" default-command "$zcmd" >/dev/null || cfg_err=1
+        if [[ "$mouse" == "1" ]]; then god_tmux set-option -g mouse on >/dev/null || cfg_err=1; fi
+        if (( cfg_err )); then
+            # Sin reintentos: se informa. Si la sesión ya no existe, su shell terminó al arrancar.
+            if god_session_exists; then
+                msg_warn "${P_NAME}: could not fully configure the session (new windows may use your normal shell)."
+            else
+                trap - INT TERM HUP
+                msg_err "The ${P_NAME} session ended right after starting: its shell exited."
+                msg_dim "    Check your ~/.zshrc for an 'exit' or an error (try: zsh -i -c true)."
+                return 1
+            fi
+        fi
     fi
     trap - INT TERM HUP
 
@@ -320,25 +315,35 @@ god_start() {
     rc=$?
     printf '\e[23;0t'
 
-    if (( rc != 0 )) && god_session_exists; then
-        msg_err "Could not attach to the ${P_NAME} session (tmux exit ${rc})."
-        msg_dim "    The session is still running: '${P_CMD}' to retry, '${P_CMD} --kill' to end it."
-        return 1
-    fi
-
+    # Cómo terminó la conexión (sin reintentos; solo se informa):
+    #   sesión viva                  → desconexión (Ctrl+B d o ventana cerrada)
+    #   sin sesión y attach = 0      → la sesión terminó: salió su última shell
+    #                                  (exit, Ctrl+D) o alguien la cerró
+    #   sin sesión y attach != 0     → el servidor tmux terminó de forma inesperada
     if god_session_exists; then
+        if (( rc != 0 )); then
+            msg_err "Could not attach to the ${P_NAME} session (tmux exit ${rc})."
+            msg_dim "    The session is still running: '${P_CMD}' to retry, '${P_CMD} --kill' to end it."
+            return 1
+        fi
         (( use_anim )) && god_fx_disengage "${P_TITLE} ${G_SEP} DETACHED"
         msg_info "Detached from ${P_NAME}: your programs keep running."
         msg_dim "    '${P_CMD}' to return · '${P_CMD} --kill' to end the session"
-    else
-        (( use_anim )) && god_fx_disengage "${P_TITLE} OFF"
-        printf '%s%s %s off. Back to your terminal.%s\n' "$T_DIM" "$G_DIAM" "$P_NAME" "$C_RESET"
+        return 0
     fi
+    if (( rc != 0 )); then
+        msg_err "The ${P_NAME} tmux server ended unexpectedly (tmux exit ${rc}). The session is gone."
+        msg_dim "    This is not a normal detach; programs running in it were terminated."
+        return 1
+    fi
+    (( use_anim )) && god_fx_disengage "${P_TITLE} OFF"
+    printf '%s%s %s off. Back to your terminal.%s\n' "$T_DIM" "$G_DIAM" "$P_NAME" "$C_RESET"
+    msg_dim "    Session ended: its last shell exited (exit / Ctrl+D) or it was closed. Ctrl+B d detaches instead."
     return 0
 }
 
 god_main() {
-    local action="start" anim_opt="" assume_yes=0 profile="god" help=0
+    local action="start" anim_opt="" assume_yes=0 profile="god" help=0 attach_only=0
     while (( $# > 0 )); do
         case "$1" in
             -h|--help|help) help=1 ;;
@@ -346,6 +351,7 @@ god_main() {
             --status|status) action="status" ;;
             --kill|kill)    action="kill" ;;
             --check|check)  action="check" ;;
+            --attach-only)  attach_only=1 ;;
             -y|--yes)       assume_yes=1 ;;
             --profile)      [[ $# -ge 2 ]] || { msg_err "--profile needs a value"; return 2; }; profile="$2"; shift ;;
             *) msg_err "Unknown option for 'urb god': $1"; msg_dim "    See: urb god --help"; return 2 ;;
@@ -358,7 +364,7 @@ god_main() {
         msg_err "Invalid URB_${P_TAG}_SOCKET name."; return 2
     fi
     case "$action" in
-        start)  god_start "$anim_opt" ;;
+        start)  god_start "$anim_opt" "$attach_only" ;;
         status) god_status ;;
         kill)   god_kill "$assume_yes" ;;
         check)  god_check ;;
