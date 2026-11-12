@@ -152,3 +152,5 @@ urb god                           # reconectar GOD → exit → "God Mode off. S
 ```
 
 Si alguna vez una desconexión acaba en `[exited]`, anota el mensaje que imprime `urb` justo después y la salida de `urb sessions`.
+
+**2026-11-12 · Verificado en vivo en Kali (sesiones):** Diego confirma que todo funciona: `urb sessions` (list/info/attach/kill), las ventanas nuevas con el perfil, desconexión y reconexión de GOD y RED, y el aislamiento entre ambos. La desaparición puntual de RED tras `Ctrl+B d` no se ha vuelto a observar; su causa sigue sin confirmarse.
