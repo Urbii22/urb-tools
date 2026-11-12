@@ -18,6 +18,7 @@ SRC_DIR="$(cd -P -- "$(dirname -- "$(readlink -f -- "${BASH_SOURCE[0]}")")" && p
 APP_DIR="${URB_APP_DIR:-$HOME/.local/lib/urb-tools}"
 BIN_DIR="${URB_BIN_DIR:-$HOME/.local/bin}"
 LAUNCHER="${BIN_DIR}/urb"
+HELP_LAUNCHER="${BIN_DIR}/urb-help"
 MARKER=".urb-install"
 
 ASSUME_YES=0
@@ -112,7 +113,7 @@ ok "Bash ${BASH_VERSION}"
 REQUIRED=("ip:iproute2" "ss:iproute2" "ps:procps" "df:coreutils" "awk:mawk" "sed:sed" "find:findutils" "tput:ncurses-bin")
 OPTIONAL=("nmap:nmap" "fzf:fzf" "figlet:figlet" "curl:curl" "ping:iputils-ping" "less:less" "tmux:tmux" "zsh:zsh" "python3:python3")
 # God Mode (urb god): solo necesita tmux y zsh; sin ellos, el resto funciona igual
-GOD_FILES=(godmode/god.sh godmode/session.sh modules/sessions.sh lib/findings.sh modules/findings.sh lib/scans.sh lib/nmap_services.py modules/inventory.sh godmode/tmux.conf godmode/zsh/.zshenv godmode/zsh/.zshrc godmode/hud/status.sh godmode/animations/fx.sh godmode/themes/urb.theme godmode/themes/red.theme godmode/profiles/god.profile godmode/profiles/red.profile lib/lab.sh lib/diagnose.sh modules/red.sh)
+GOD_FILES=(bin/urb-help lib/engine.sh modules/serve.sh commands/red-recon.spec commands/serve.spec docs/COMMANDS.md docs/EXAMPLES.md godmode/god.sh godmode/session.sh modules/sessions.sh lib/findings.sh modules/findings.sh lib/scans.sh lib/nmap_services.py modules/inventory.sh godmode/tmux.conf godmode/zsh/.zshenv godmode/zsh/.zshrc godmode/hud/status.sh godmode/animations/fx.sh godmode/themes/urb.theme godmode/themes/red.theme godmode/profiles/god.profile godmode/profiles/red.profile lib/lab.sh lib/diagnose.sh modules/red.sh)
 missing_req=() missing_opt=() pkgs=()
 for e in "${REQUIRED[@]}"; do has "${e%%:*}" || { missing_req+=("${e%%:*}"); pkgs+=("${e#*:}"); }; done
 for e in "${OPTIONAL[@]}"; do has "${e%%:*}" || { missing_opt+=("${e%%:*}"); pkgs+=("${e#*:}"); }; done
@@ -157,17 +158,18 @@ is_urb_tree() {
         grep -q '^URB_NAME="URB-Tools"$' "${dir}/lib/utils.sh" 2>/dev/null
 }
 
-# Un enlace solo es "nuestro" si apunta a <dir>/bin/urb y <dir> es de URB-Tools
-# (instalación normal o modo --link). Un nombre acabado en /bin/urb no basta.
+# Un enlace solo es "nuestro" si apunta a <dir>/bin/<nombre> y <dir> es de
+# URB-Tools (instalación normal o modo --link). Un nombre acabado en /bin/urb
+# no basta. <nombre>: urb (por defecto) o urb-help.
 is_urb_launcher() {
-    local link="$1" target
+    local link="$1" name="${2:-urb}" target
     [[ -L "$link" ]] || return 1
     target="$(readlink -- "$link")" || return 1
-    [[ "$target" == */bin/urb ]] || return 1
+    [[ "$target" == */bin/"$name" ]] || return 1
     [[ "$target" == /* ]] || target="$(dirname -- "$link")/${target}"
     # Enlace roto hacia nuestra propia carpeta de instalación (borrada a mano)
-    [[ "$target" == "${APP_DIR}/bin/urb" ]] && return 0
-    is_urb_tree "${target%/bin/urb}"
+    [[ "$target" == "${APP_DIR}/bin/${name}" ]] && return 0
+    is_urb_tree "${target%/bin/"$name"}"
 }
 
 PREV_LAUNCHER=""
@@ -181,6 +183,15 @@ if [[ -L "$LAUNCHER" ]]; then
 elif [[ -e "$LAUNCHER" ]]; then
     err "${LAUNCHER} exists and is not an URB launcher. Remove or rename it first."
     exit 1
+fi
+
+# Acceso directo urb-help: si hay algo ajeno con ese nombre, se respeta y se omite
+PREV_HELP_LAUNCHER="" SKIP_HELP_LAUNCHER=0
+if [[ -L "$HELP_LAUNCHER" ]]; then
+    if is_urb_launcher "$HELP_LAUNCHER" urb-help; then PREV_HELP_LAUNCHER="$(readlink -- "$HELP_LAUNCHER")"
+    else SKIP_HELP_LAUNCHER=1; warn "${HELP_LAUNCHER} belongs to something else; urb-help will not be installed (use: urb help)."; fi
+elif [[ -e "$HELP_LAUNCHER" ]]; then
+    SKIP_HELP_LAUNCHER=1; warn "${HELP_LAUNCHER} exists and is not ours; urb-help will not be installed (use: urb help)."
 fi
 
 if (( ! LINK_MODE )); then
@@ -217,6 +228,7 @@ verify_tree() {
     "${dir}/bin/urb" --no-color version >/dev/null 2>&1 || { err "Verification failed: ${dir}/bin/urb does not run"; return 1; }
     "${dir}/bin/urb" --no-color god --help >/dev/null 2>&1 || { err "Verification failed: 'urb god --help' does not run"; return 1; }
     "${dir}/bin/urb" --no-color red --help >/dev/null 2>&1 || { err "Verification failed: 'urb red --help' does not run"; return 1; }
+    "${dir}/bin/urb" --no-color help red recon >/dev/null 2>&1 || { err "Verification failed: command specs (commands/*.spec) do not load"; return 1; }
     return 0
 }
 
@@ -246,6 +258,13 @@ rollback() {
     elif [[ -L "$LAUNCHER" ]] && is_urb_launcher "$LAUNCHER"; then
         rm -f -- "$LAUNCHER"   # lo creó esta ejecución
     fi
+    if (( ! SKIP_HELP_LAUNCHER )); then
+        if [[ -n "$PREV_HELP_LAUNCHER" ]]; then
+            ln -sfn -- "$PREV_HELP_LAUNCHER" "$HELP_LAUNCHER" 2>/dev/null || err "Could not restore ${HELP_LAUNCHER}"
+        elif [[ -L "$HELP_LAUNCHER" ]] && is_urb_launcher "$HELP_LAUNCHER" urb-help; then
+            rm -f -- "$HELP_LAUNCHER"
+        fi
+    fi
     [[ -n "$STAGING" && -d "$STAGING" ]] && rm -rf -- "$STAGING"
     return 0
 }
@@ -254,20 +273,20 @@ fail() { err "$*"; rollback; exit 1; }
 if (( LINK_MODE )); then
     TARGET_HOME="$SRC_DIR"
     info "Developer mode: launcher will point to ${SRC_DIR}"
-    chmod +x -- "${SRC_DIR}/bin/urb" "${SRC_DIR}"/modules/*.sh "${SRC_DIR}"/godmode/god.sh "${SRC_DIR}"/godmode/hud/status.sh 2>/dev/null
+    chmod +x -- "${SRC_DIR}/bin/urb" "${SRC_DIR}/bin/urb-help" "${SRC_DIR}"/modules/*.sh "${SRC_DIR}"/godmode/god.sh "${SRC_DIR}"/godmode/hud/status.sh 2>/dev/null
     verify_tree "$SRC_DIR" 0 || exit 1
 else
     # 5a. Preparar y verificar la nueva versión en una carpeta temporal
     STAGING="${APP_DIR}.new.$$"
     mkdir -p -- "$STAGING" || { err "Cannot create ${STAGING}"; exit 1; }
-    if ! cp -R -- "${SRC_DIR}/bin" "${SRC_DIR}/lib" "${SRC_DIR}/modules" "${SRC_DIR}/config" "${SRC_DIR}/godmode" "$STAGING/"; then
+    if ! cp -R -- "${SRC_DIR}/bin" "${SRC_DIR}/lib" "${SRC_DIR}/modules" "${SRC_DIR}/config" "${SRC_DIR}/godmode" "${SRC_DIR}/commands" "${SRC_DIR}/docs" "$STAGING/"; then
         rm -rf -- "$STAGING"; err "Copy failed."; exit 1
     fi
     for f in README.md LICENSE install.sh uninstall.sh; do
         [[ -f "${SRC_DIR}/${f}" ]] && cp -- "${SRC_DIR}/${f}" "$STAGING/"
     done
     printf 'installed=%s\nsource=%s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$SRC_DIR" >"${STAGING}/${MARKER}"
-    chmod +x -- "${STAGING}/bin/urb" "${STAGING}"/modules/*.sh "${STAGING}"/godmode/god.sh "${STAGING}"/godmode/hud/status.sh 2>/dev/null
+    chmod +x -- "${STAGING}/bin/urb" "${STAGING}/bin/urb-help" "${STAGING}"/modules/*.sh "${STAGING}"/godmode/god.sh "${STAGING}"/godmode/hud/status.sh 2>/dev/null
     if ! verify_tree "$STAGING" 1; then
         rm -rf -- "$STAGING"; err "New version not installed; the existing installation was not modified."; exit 1
     fi
@@ -294,6 +313,10 @@ trap 'rollback; exit 130' INT TERM HUP
 mkdir -p -- "$BIN_DIR" || fail "Cannot create ${BIN_DIR}"
 ln -sfn -- "${TARGET_HOME}/bin/urb" "$LAUNCHER" || fail "Cannot create ${LAUNCHER}"
 ok "Launcher: ${LAUNCHER} -> ${TARGET_HOME}/bin/urb"
+if (( ! SKIP_HELP_LAUNCHER )); then
+    ln -sfn -- "${TARGET_HOME}/bin/urb-help" "$HELP_LAUNCHER" || fail "Cannot create ${HELP_LAUNCHER}"
+    ok "Launcher: ${HELP_LAUNCHER} -> ${TARGET_HOME}/bin/urb-help"
+fi
 
 # --- 7. Verificación final a través del lanzador ----------------------------------------
 if ver="$("$LAUNCHER" --no-color version 2>&1)"; then ok "Check: ${ver}"

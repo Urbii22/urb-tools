@@ -239,3 +239,60 @@ urb red                                         # dentro: urb red findings evide
 ```
 
 **Limitaciones:** sin enlace operativo hallazgo ↔ servicio todavía (solo el diseño), sin comparar escaneos, `recon initial` sigue usando solo el perfil `default`, y el autocompletado de nombres de laboratorio asume `~/urb-labs`.
+
+## 2026-11-12 · Command Engine v0.1 + manual completo
+
+**Arquitectura**
+- **`lib/engine.sh`** lee las especificaciones `commands/*.spec` (datos `clave=valor` validados, nunca ejecutados): `modifier=nombre|grupo|flags|desc`, `option=nombre|tipo|defecto|clave_config|desc`, `group=`, `note=` y `example=`.
+- **Análisis:** los modificadores no dependen del orden, se normalizan al orden del `.spec` y se rechazan los desconocidos, los repetidos y dos del mismo grupo. Las opciones van siempre como `--opción valor` (se rechaza `--opción=valor`) y se validan por tipo (`target`, `port`, `ip`, `dir`, `flag`).
+- **Precedencia de valores:** explícito > configuración del usuario > defecto del `.spec`.
+- **Una sola definición:** de cada `.spec` salen la validación, la ayuda (`urb help red recon`, `urb help serve`) y el autocompletado (Zsh lee el `.spec` de forma nativa). Un comando nuevo = un `.spec` + un manejador.
+- **`urb red recon <modificadores>`:**
+  - Usa `RECON_BASE` + `RECON_MOD_<mod>` de la configuración, que el usuario puede ajustar.
+  - `slow` sustituye el `-T` de la base; la comprobación final rechaza dos `-T` o dos selecciones de puertos aunque la configuración se edite a mano. `quick`, `full` y `udp` forman el grupo `ports`.
+  - Llama a `scan_main` por una **interfaz interna**: arrays `SCAN_ENGINE_ARGS` y `SCAN_ENGINE_OPTS` que solo existen en el mismo proceso, porque las variables de entorno no pueden ser arrays. No hay ninguna opción pública de argumentos libres.
+  - `scan_build_cmd` es la **única** función que construye el comando, tanto para la ejecución real como para `--dry-run`.
+  - `urb scan` y `recon initial` no cambian.
+- **`urb serve`:** `python3 -m http.server` con `127.0.0.1:8000` por defecto (configurable con `SERVE_PORT`/`SERVE_BIND`).
+  - Detecta el puerto ocupado antes de arrancar, intentando reservarlo con Python, y rechaza los puertos privilegiados sin root.
+  - Una dirección no local exige confirmación o `--yes`. Ctrl+C lo detiene con el código 0. No toca el firewall.
+- **Ayuda:**
+  - `red_help` se divide en secciones (`urb help red <sección>`) y el `--help` de cada subcomando muestra su sección.
+  - `urb help` admite temas y subtemas; un tema desconocido devuelve el código 2.
+  - `bin/urb-help` es un lanzador de una línea que ejecuta `urb help` (sin duplicar la ayuda). El instalador lo crea con las mismas reglas de propiedad y rollback, respeta un `urb-help` ajeno, y el desinstalador solo borra el suyo.
+  - `urb manual` abre `docs/COMMANDS.md` con `less`, o muestra la ruta.
+- **Documentación:** `docs/COMMANDS.md` (14 secciones, en español) y `docs/EXAMPLES.md` (8 flujos). Los tests comprueban que cada comando, subcomando, modificador, opción, clave de configuración y estado está documentado, y que los ejemplos solo usan comandos reales.
+
+**Fallos encontrados en las pruebas:** la columna de perfil de `scans` cortaba las combinaciones (`quick-versions`). Además, dos pruebas de Ctrl+C estaban mal planteadas: un proceso lanzado con `&` tiene SIGINT ignorado, así que ahora se prueban en una pseudo-terminal real.
+
+| Comprobado automáticamente (WSL) | Pendiente de probar a mano en Kali |
+|---|---|
+| `quick versions` = `versions quick` (comando idéntico) y otras permutaciones | `urb red recon quick versions` real contra el laboratorio `demo` |
+| Modificadores repetidos, desconocidos e incompatibles; `--opción=valor`; valores inválidos | Autocompletado con Tab de los modificadores y de `serve`/`help` en QTerminal |
+| Precedencia explícito > config > defecto; `slow` sin doble `-T`; configuración manipulada | `urb manual` con `less` |
+| `--dry-run` sin nmap, sin sudo, sin ficheros, sin carpetas y sin bloqueo | `urb serve` y un navegador real; Ctrl+C |
+| Interfaz interna no accesible desde el entorno ni la CLI | |
+| `serve`: puerto por defecto y personalizado, ocupado, privilegiado, inválido, sin python3, no local con y sin `--yes`, Ctrl+C (pty) | |
+| `urb help`, secciones, `urb-help` idéntico, `urb manual`; instalación y desinstalación de `urb-help` | |
+| Cobertura de la documentación y ejemplos válidos | |
+
+**Prueba en Kali**
+
+```bash
+cd ~/urb-tools && git pull && ./install.sh
+urb-help                                   # ayuda general (también: urb help)
+urb-help red recon                         # modificadores generados desde el .spec
+urb red lab use demo
+urb red recon quick versions --dry-run     # comando nmap exacto, sin ejecutar
+urb red recon versions quick --dry-run     # mismo comando
+urb red recon quick versions               # escaneo real → S-00N
+urb red scans && urb red services
+urb red recon quick full                   # error: incompatibles
+cd ~/urb-labs/demo && urb serve            # http://127.0.0.1:8000/ → abrir en el navegador → Ctrl+C
+urb serve --bind 0.0.0.0                   # pide confirmación
+urb manual                                 # manual completo (q para salir)
+urb manual examples
+urb red                                    # dentro: urb red recon <Tab><Tab> · urb serve --<Tab> · urb help red <Tab>
+```
+
+**Limitaciones:** el motor gestiona `red recon` y `serve`; el resto de comandos conserva su propio análisis de argumentos (migrarlos es trabajo futuro). Los ejemplos de `.spec` están en inglés, como el resto de la ayuda de la CLI; el manual está en español. `urb manual` usa `less` (sin renderizar Markdown).

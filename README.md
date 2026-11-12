@@ -90,10 +90,24 @@ Borra solo el lanzador y `~/.local/lib/urb-tools`. Tu configuración (`~/.config
 
 ```bash
 urb                       # Dashboard interactivo (URB Terminal)
-urb help [comando]        # Ayuda general o de un comando
+urb help [comando]        # Ayuda general o de un comando (también: urb-help)
+urb help red scans        # Ayuda de una sección
+urb manual                # Manual completo (docs/COMMANDS.md); urb manual examples
 urb version
 urb doctor                # Dependencias y entorno
 ```
+
+> **Manual de referencia:** [docs/COMMANDS.md](docs/COMMANDS.md) recoge todos los comandos, con sus parámetros, valores por defecto, efectos, ficheros y errores frecuentes. [docs/EXAMPLES.md](docs/EXAMPLES.md) tiene flujos completos. Este README es solo una presentación.
+
+### Command Engine: comandos cortos y combinables
+
+```bash
+urb red recon quick versions          # = urb red recon versions quick
+urb red recon full versions scripts --dry-run   # muestra el comando nmap exacto, sin ejecutar nada
+urb serve --port 8080                 # servidor HTTP local (127.0.0.1 por defecto)
+```
+
+Los modificadores se combinan en cualquier orden, usan el objetivo del laboratorio y se pueden sobrescribir con `--target`. Las incompatibilidades (`quick full`) se rechazan con un mensaje claro. Cada comando del motor se describe como datos en `commands/*.spec`, de donde salen su validación, su ayuda y su autocompletado. Detalle en la [§13 del manual](docs/COMMANDS.md#13-command-engine).
 
 ### Dashboard
 
@@ -406,7 +420,11 @@ urb sessions kill red           # terminar (pide confirmación SIEMPRE; --yes pa
 ```
 urb-tools/
 ├── bin/urb               # CLI: opciones globales y despacho de comandos
+├── bin/urb-help          # acceso directo a 'urb help' (sin ayuda propia)
+├── commands/             # Command Engine: red-recon.spec, serve.spec (datos)
+├── docs/                 # manual: COMMANDS.md (referencia) y EXAMPLES.md (flujos)
 ├── lib/
+│   ├── engine.sh         # Command Engine: lee .spec, modificadores, precedencia, ayuda
 │   ├── utils.sh          # colores, mensajes, validación de entradas, config segura
 │   ├── ui.sh             # motor TUI: tema, cajas, barras, búfer de dibujo, teclado, menús
 │   ├── system.sh         # lectura de datos reales (/proc, ip, df…)
@@ -416,7 +434,7 @@ urb-tools/
 │   ├── scans.sh          # índice de escaneos (S-NNN), estados, latest, caché de servicios
 │   ├── nmap_services.py  # XML de nmap → inventario (Python 3, solo biblioteca estándar)
 │   └── dashboard.sh      # URB Terminal (dashboard principal)
-├── modules/              # scan, network, monitor, logs, ctf, settings, red, findings, inventory, sessions
+├── modules/              # scan, network, monitor, logs, ctf, settings, red, findings, inventory, serve, sessions
 ├── godmode/              # URB God Mode (independiente de los módulos)
 │   ├── god.sh            # activación, sesión tmux aislada, salida, --status/--kill/--attach-only
 │   ├── session.sh        # perfiles y consultas de sesión de solo lectura (compartido)

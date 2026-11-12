@@ -32,8 +32,8 @@ export -f _fail assert_eq assert_ok assert_fail assert_contains assert_not_conta
 load_urb() {
     # shellcheck source=/dev/null
     source "${URB_HOME}/lib/utils.sh"
-    for f in lib/ui.sh lib/system.sh lib/lab.sh lib/diagnose.sh lib/findings.sh lib/scans.sh modules/ctf.sh modules/scan.sh modules/network.sh \
-             modules/monitor.sh modules/logs.sh modules/settings.sh modules/red.sh modules/findings.sh modules/inventory.sh; do
+    for f in lib/ui.sh lib/system.sh lib/lab.sh lib/diagnose.sh lib/findings.sh lib/scans.sh lib/engine.sh modules/ctf.sh modules/scan.sh modules/network.sh \
+             modules/monitor.sh modules/logs.sh modules/settings.sh modules/red.sh modules/findings.sh modules/inventory.sh modules/serve.sh; do
         # shellcheck source=/dev/null
         source "${URB_HOME}/${f}"
     done

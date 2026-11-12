@@ -147,7 +147,7 @@ if (( $+functions[compdef] )); then
         local -a ids lines
         local REPLY line
         if (( CURRENT == 2 )); then
-            compadd -- scan network monitor logs ctf config doctor god red sessions help version
+            compadd -- scan network monitor logs ctf config doctor god red sessions serve manual help version
             return
         fi
         case "${words[2]}" in
@@ -162,7 +162,20 @@ if (( $+functions[compdef] )); then
                         elif [[ "${words[4]}" == (use|path) ]]; then compadd -- ${HOME}/urb-labs/*(N/:t)
                         fi ;;
                     target)  (( CURRENT == 4 )) && compadd -- set show ;;
-                    recon)   (( CURRENT == 4 )) && compadd -- initial ;;
+                    recon)
+                        # Modificadores leídos del .spec (datos) con Zsh nativo: sin procesos
+                        ids=()
+                        if [[ -r "${URB_HOME:-}/commands/red-recon.spec" ]]; then
+                            lines=("${(@f)$(<"${URB_HOME}/commands/red-recon.spec")}")
+                            for line in "${lines[@]}"; do
+                                [[ "$line" == modifier=* ]] && ids+=("${${line#modifier=}%%|*}")
+                            done
+                        fi
+                        if (( CURRENT == 4 )); then compadd -- initial "${ids[@]}" --dry-run --target --sudo
+                        elif [[ "${words[4]}" != initial ]]; then
+                            compadd -- "${ids[@]:|words}" --dry-run --target --sudo
+                        else compadd -- --target
+                        fi ;;
                     notes)   (( CURRENT == 4 )) && compadd -- add edit ;;
                     findings)
                         if (( CURRENT == 4 )); then
@@ -215,7 +228,13 @@ if (( $+functions[compdef] )); then
             ctf)     (( CURRENT == 3 )) && compadd -- new list path ;;
             config)  (( CURRENT == 3 )) && compadd -- show path init edit set ;;
             scan)    (( CURRENT == 3 )) && compadd -- profiles results; _files ;;
-            help)    compadd -- scan network monitor logs ctf config god red sessions ;;
+            help)
+                if (( CURRENT == 3 )); then compadd -- scan network monitor logs ctf config god red sessions serve manual
+                elif [[ "${words[3]}" == red ]] && (( CURRENT == 4 )); then
+                    compadd -- shell lab target recon scans services findings notes context
+                fi ;;
+            serve)   compadd -- --port --bind --dir --yes ;;
+            manual)  (( CURRENT == 3 )) && compadd -- commands examples path ;;
         esac
     }
     compdef _urb_complete urb

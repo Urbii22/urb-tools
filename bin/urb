@@ -22,27 +22,37 @@ URB_HOME="$(cd -P -- "$(dirname -- "$_urb_src")/.." && pwd -P)" || {
 export URB_HOME
 unset _urb_src
 
-for _f in lib/utils.sh lib/ui.sh lib/system.sh lib/lab.sh lib/diagnose.sh lib/findings.sh lib/scans.sh lib/dashboard.sh \
+for _f in lib/utils.sh lib/ui.sh lib/system.sh lib/lab.sh lib/diagnose.sh lib/findings.sh lib/scans.sh lib/engine.sh lib/dashboard.sh \
           modules/scan.sh modules/network.sh modules/monitor.sh \
           modules/logs.sh modules/ctf.sh modules/settings.sh modules/red.sh modules/findings.sh modules/inventory.sh \
-          godmode/session.sh modules/sessions.sh; do
+          modules/serve.sh godmode/session.sh modules/sessions.sh; do
     # shellcheck source=/dev/null
     source "${URB_HOME}/${_f}" || { echo "urb: failed to load ${_f}" >&2; exit 1; }
 done
 unset _f
 
+# urb help [tema [sección]] — también disponible como 'urb-help'.
+# Cada tema reutiliza la ayuda de su módulo (o la generada desde commands/*.spec):
+# no hay una segunda definición de la sintaxis.
 urb_help() {
     local topic="${1:-}"
     case "$topic" in
-        scan|recon)     scan_help; return 0 ;;
-        network|net)    network_help; return 0 ;;
-        monitor|mon)    monitor_help; return 0 ;;
-        logs|log)       logs_help; return 0 ;;
-        ctf|lab)        ctf_help; return 0 ;;
-        config|settings) settings_help; return 0 ;;
-        god|godmode)    urb_god --help; return $? ;;
-        red)            red_help; return 0 ;;
+        "") ;;
+        scan|recon)       scan_help; return 0 ;;
+        network|net)      network_help; return 0 ;;
+        monitor|mon)      monitor_help; return 0 ;;
+        logs|log)         logs_help; return 0 ;;
+        ctf|lab)          ctf_help; return 0 ;;
+        config|settings|doctor) settings_help; return 0 ;;
+        god|godmode)      urb_god --help; return $? ;;
+        red)              red_help "${2:-}"; return $? ;;
         sessions|session) sessions_help; return 0 ;;
+        serve)            eng_help serve; return $? ;;
+        manual)           urb_manual_help; return 0 ;;
+        help|version)     ;;
+        *) msg_err "No help topic '${topic}'."
+           msg_dim "    Topics: scan network monitor logs ctf config god red sessions serve manual"
+           return 2 ;;
     esac
     ui_print_logo
     cat <<EOF
@@ -60,10 +70,12 @@ ${C_BOLD}COMMANDS${C_RESET}
   ${T_KEY}ctf${C_RESET} new <name>       Create a CTF/lab workspace (also: list, path)
   ${T_KEY}config${C_RESET} [action]      Show / edit / init user configuration
   ${T_KEY}god${C_RESET} [--help]         URB God Mode: real zsh + tmux workspace with HUD
-  ${T_KEY}red${C_RESET} [command]        URB Red: lab profile (labs, target, recon initial)
+  ${T_KEY}red${C_RESET} [command]        URB Red: labs, target, recon, scans, services, findings, notes
   ${T_KEY}sessions${C_RESET} [action]    List / inspect / attach / end God Mode and URB Red sessions
+  ${T_KEY}serve${C_RESET} [options]      Local HTTP server for the current directory (python3)
   ${T_KEY}doctor${C_RESET}               Check dependencies and environment
-  ${T_KEY}help${C_RESET} [command]       Show help (e.g. urb help scan)
+  ${T_KEY}manual${C_RESET} [examples]    Open the full manual (docs/COMMANDS.md, docs/EXAMPLES.md)
+  ${T_KEY}help${C_RESET} [command] [section]  Help (e.g. urb help red scans) — also: urb-help
   ${T_KEY}version${C_RESET}              Show version
 
 ${C_BOLD}GLOBAL OPTIONS${C_RESET}
@@ -73,13 +85,46 @@ ${C_BOLD}GLOBAL OPTIONS${C_RESET}
   -y, --yes       Answer "yes" to confirmations (non-interactive use)
 
 ${C_BOLD}EXAMPLES${C_RESET}
-  urb scan 10.10.10.5 --profile quick
-  urb network discover 192.168.56.0/24
-  urb logs auth --since 2026-11-01 --ip 10.0.0.5
-  urb ctf new htb-lame
+  urb red recon quick versions
+  urb red findings evidence F-001 --scan latest
+  urb serve --port 8080
+  urb help red scans
 
 ${T_DIM}Only scan systems you own or are explicitly authorized to test.${C_RESET}
 EOF
+}
+
+urb_manual_help() {
+    cat <<EOF
+${C_BOLD}urb manual${C_RESET} — the full reference manual installed with URB-Tools
+
+${C_BOLD}USAGE${C_RESET}
+  urb manual              Open docs/COMMANDS.md (every command, options, defaults, errors)
+  urb manual examples     Open docs/EXAMPLES.md (complete workflows)
+  urb manual path         Print where the manual files are
+
+Opens with 'less' in a terminal; otherwise prints the file path.
+EOF
+}
+
+# urb manual [commands|examples|path]
+urb_manual() {
+    local which="${1:-commands}" f
+    case "$which" in
+        commands|"") f="${URB_HOME}/docs/COMMANDS.md" ;;
+        examples)    f="${URB_HOME}/docs/EXAMPLES.md" ;;
+        path)        printf '%s\n%s\n' "${URB_HOME}/docs/COMMANDS.md" "${URB_HOME}/docs/EXAMPLES.md"; return 0 ;;
+        -h|--help|help) urb_manual_help; return 0 ;;
+        *) msg_err "Unknown manual: ${which} (use: commands, examples, path)"; return 2 ;;
+    esac
+    [[ -r "$f" ]] || { msg_err "Manual not found: ${f} (reinstall URB-Tools: ./install.sh)"; return 1; }
+    if [[ -t 1 ]] && has_cmd less; then
+        less -R -- "$f"
+    else
+        printf '%s\n' "$f"
+        [[ -t 1 ]] && msg_dim "    'less' is not installed; open the file with any text viewer."
+    fi
+    return 0
 }
 
 urb_version() {
@@ -134,6 +179,8 @@ main() {
         doctor)              urb_doctor ;;
         god|godmode)         urb_god "$@" ;;
         red)                 red_main "$@" ;;
+        serve)               serve_main "$@" ;;
+        manual|man)          urb_manual "$@" ;;
         sessions|session)   sessions_main "$@" ;;
         help|-h|--help)      urb_help "$@" ;;
         version|-v|--version) urb_version ;;

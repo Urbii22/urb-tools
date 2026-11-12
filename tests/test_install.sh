@@ -18,7 +18,7 @@ _make_source_copy() {
     local dst="$1" tag="$2"
     mkdir -p "$dst"
     cp -R "$URB_HOME/bin" "$URB_HOME/lib" "$URB_HOME/modules" "$URB_HOME/config" "$URB_HOME/godmode" \
-          "$URB_HOME/install.sh" "$URB_HOME/uninstall.sh" "$dst/"
+          "$URB_HOME/commands" "$URB_HOME/docs" "$URB_HOME/install.sh" "$URB_HOME/uninstall.sh" "$dst/"
     printf '# %s\n' "$tag" >>"$dst/config/default.conf"
 }
 
@@ -246,4 +246,32 @@ test_install_includes_red_profile() {
     assert_status 0 bash "$URB_HOME/uninstall.sh" --yes
     assert_contains "$(cat "$HOME/urb-labs/instlab/.urb-lab")" "target=10.10.10.10"
     assert_file "$HOME/.local/share/urb-tools/state/active-lab"
+}
+
+test_install_help_launcher_docs_and_specs() {
+    local out
+    out="$(bash "$URB_HOME/install.sh" --yes --no-deps 2>&1)"
+    assert_eq "$?" 0 "$out"
+    [[ -L "$HOME/.local/bin/urb-help" ]] || _fail "urb-help launcher missing"
+    assert_eq "$(readlink "$HOME/.local/bin/urb-help")" "$(_APP)/bin/urb-help"
+    assert_file "$(_APP)/docs/COMMANDS.md"
+    assert_file "$(_APP)/docs/EXAMPLES.md"
+    assert_file "$(_APP)/commands/red-recon.spec"
+    assert_contains "$("$HOME/.local/bin/urb-help" --no-color red scans 2>&1 || "$HOME/.local/bin/urb-help" red scans)" "SCANS"
+    assert_contains "$("$(_LNK)" --no-color manual path)" "$(_APP)/docs/COMMANDS.md"
+    # Desinstalar quita también urb-help
+    assert_status 0 bash "$URB_HOME/uninstall.sh" --yes
+    [[ ! -e "$HOME/.local/bin/urb-help" && ! -L "$HOME/.local/bin/urb-help" ]] || _fail "urb-help not removed"
+}
+
+test_install_respects_foreign_urb_help() {
+    mkdir -p "$HOME/.local/bin"
+    printf '#!/bin/sh\necho mine\n' >"$HOME/.local/bin/urb-help"
+    local out
+    out="$(bash "$URB_HOME/install.sh" --yes --no-deps 2>&1)"
+    assert_eq "$?" 0 "$out"
+    assert_contains "$out" "urb-help will not be installed"
+    assert_eq "$(cat "$HOME/.local/bin/urb-help")" $'#!/bin/sh\necho mine'
+    assert_status 0 bash "$URB_HOME/uninstall.sh" --yes
+    assert_eq "$(cat "$HOME/.local/bin/urb-help")" $'#!/bin/sh\necho mine'
 }

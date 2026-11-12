@@ -305,7 +305,7 @@ urb_read_theme() {
 # Inicialización cuando un módulo se ejecuta directamente (bash modules/x.sh)
 urb_standalone_init() {
     local f
-    for f in lib/ui.sh lib/system.sh lib/lab.sh lib/diagnose.sh lib/findings.sh lib/scans.sh modules/ctf.sh modules/scan.sh; do
+    for f in lib/ui.sh lib/system.sh lib/lab.sh lib/diagnose.sh lib/findings.sh lib/scans.sh lib/engine.sh modules/ctf.sh modules/scan.sh; do
         # shellcheck source=/dev/null
         source "${URB_HOME}/${f}" || { msg_err "Cannot load ${f}"; return 1; }
     done

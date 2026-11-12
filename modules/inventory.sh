@@ -39,11 +39,11 @@ red_scans_list() {
         msg_dim "  No scans yet. Run: urb red recon initial"
         return 0
     fi
-    printf '  %s%-7s %-16s %-18s %-9s %-11s %s%s\n' "$C_BOLD" "ID" "DATE" "TARGET" "PROFILE" "STATUS" "FILES" "$C_RESET"
+    printf '  %s%-7s %-16s %-18s %-16s %-11s %s%s\n' "$C_BOLD" "ID" "DATE" "TARGET" "PROFILE" "STATUS" "FILES" "$C_RESET"
     for i in "${!SCN_IDS[@]}"; do
         st="$(scn_status "$dir" "${SCN_BASES[i]}")"
         scn_meta "${SCN_BASES[i]}"
-        printf '  %s%-7s%s %-16s %-18.18s %-9.9s %s%-11s%s %s%s%s\n' \
+        printf '  %s%-7s%s %-16s %-18.18s %-16.16s %s%-11s%s %s%s%s\n' \
             "$T_KEY" "${SCN_IDS[i]}" "$C_RESET" "$(_fmt_epoch "${SCN_EPOCHS[i]}")" "$SCN_TARGET" "$SCN_PROFILE" \
             "$(_scn_status_color "$st")" "$st" "$C_RESET" "$T_DIM" "$(_scn_files_of "$dir" "${SCN_BASES[i]}")" "$C_RESET"
         n=$(( n + 1 ))
@@ -84,7 +84,7 @@ red_scans_show() {
 red_scans() {
     local action="${1:-list}"
     (( $# > 0 )) && shift
-    case "$action" in -h|--help|help) red_help; return 0 ;; esac
+    case "$action" in -h|--help|help) red_help scans; return 0 ;; esac
     _red_require_lab || return 1
     case "$action" in
         list|ls) [[ $# -eq 0 ]] || { msg_err "Usage: urb red scans list"; return 2; }; red_scans_list ;;
@@ -218,7 +218,7 @@ red_services_show() {
 red_services() {
     local action="${1:-list}" rc
     (( $# > 0 )) && shift
-    case "$action" in -h|--help|help) red_help; return 0 ;; esac
+    case "$action" in -h|--help|help) red_help services; return 0 ;; esac
     _red_require_lab || return 1
     case "$action" in
         list|ls)

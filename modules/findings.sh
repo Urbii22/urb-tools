@@ -113,7 +113,7 @@ red_findings_show() {
 red_findings() {
     local action="${1:-list}" title="" desc="" status="pending" rc
     (( $# > 0 )) && shift
-    case "$action" in -h|--help|help) red_help; return 0 ;; esac
+    case "$action" in -h|--help|help) red_help findings; return 0 ;; esac
     _red_require_lab || return 1
     case "$action" in
         list|ls)
@@ -177,7 +177,7 @@ red_findings() {
 red_notes() {
     local action="${1:-show}" f rc ed
     (( $# > 0 )) && shift
-    case "$action" in -h|--help|help) red_help; return 0 ;; esac
+    case "$action" in -h|--help|help) red_help notes; return 0 ;; esac
     _red_require_lab || return 1
     f="$(fnd_notes_file "$LAB_ROOT")"
     case "$action" in

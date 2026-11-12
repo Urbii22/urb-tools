@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# urb-help — acceso directo a la ayuda de URB-Tools: equivale a "urb help ...".
+# No tiene ayuda propia: reutiliza la de bin/urb (una sola fuente).
+src="$(readlink -f -- "${BASH_SOURCE[0]}" 2>/dev/null || printf '%s' "${BASH_SOURCE[0]}")"
+exec "$(dirname -- "$src")/urb" help "$@"

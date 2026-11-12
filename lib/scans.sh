@@ -159,7 +159,8 @@ scn_status() {
 # Objetivo y perfil a partir del nombre base que genera URB (o "unknown")
 scn_meta() {
     SCN_TARGET="unknown" SCN_PROFILE="unknown"
-    if [[ "$1" =~ ^(.+)_([A-Za-z0-9]+)_([0-9]{8}-[0-9]{6})(-[0-9]+)?$ ]]; then
+    # El perfil puede ser una combinación del Command Engine (quick-versions)
+    if [[ "$1" =~ ^(.+)_([A-Za-z0-9]+(-[A-Za-z0-9]+)*)_([0-9]{8}-[0-9]{6})(-[0-9]+)?$ ]]; then
         SCN_TARGET="${BASH_REMATCH[1]}" SCN_PROFILE="${BASH_REMATCH[2]}"
     fi
 }

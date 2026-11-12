@@ -11,6 +11,7 @@ set -uo pipefail
 APP_DIR="${URB_APP_DIR:-$HOME/.local/lib/urb-tools}"
 BIN_DIR="${URB_BIN_DIR:-$HOME/.local/bin}"
 LAUNCHER="${BIN_DIR}/urb"
+HELP_LAUNCHER="${BIN_DIR}/urb-help"
 MARKER=".urb-install"
 ASSUME_YES=0
 
@@ -39,17 +40,18 @@ is_urb_tree() {
         grep -q '^URB_NAME="URB-Tools"$' "${dir}/lib/utils.sh" 2>/dev/null
 }
 is_urb_launcher() {
-    local link="$1" target
+    local link="$1" name="${2:-urb}" target
     [[ -L "$link" ]] || return 1
     target="$(readlink -- "$link")" || return 1
-    [[ "$target" == */bin/urb ]] || return 1
+    [[ "$target" == */bin/"$name" ]] || return 1
     [[ "$target" == /* ]] || target="$(dirname -- "$link")/${target}"
-    [[ "$target" == "${APP_DIR}/bin/urb" ]] && return 0
-    is_urb_tree "${target%/bin/urb}"
+    [[ "$target" == "${APP_DIR}/bin/${name}" ]] && return 0
+    is_urb_tree "${target%/bin/"$name"}"
 }
 
 found=0
 is_urb_launcher "$LAUNCHER" && found=1
+is_urb_launcher "$HELP_LAUNCHER" urb-help && found=1
 [[ -f "${APP_DIR}/${MARKER}" ]] && found=1
 if (( ! found )); then info "URB-Tools does not seem to be installed for this user. Nothing to do."; exit 0; fi
 
@@ -78,6 +80,12 @@ elif [[ -L "$LAUNCHER" ]]; then
     warn "${LAUNCHER} points to $(readlink -- "$LAUNCHER"); not an URB launcher, left untouched."
 elif [[ -e "$LAUNCHER" ]]; then
     warn "${LAUNCHER} is not a symlink created by the installer; left untouched."
+fi
+# Acceso directo urb-help: solo si es nuestro
+if is_urb_launcher "$HELP_LAUNCHER" urb-help; then
+    if rm -f -- "$HELP_LAUNCHER"; then ok "Removed launcher ${HELP_LAUNCHER}"; else err "Cannot remove ${HELP_LAUNCHER}"; rc=1; fi
+elif [[ -e "$HELP_LAUNCHER" || -L "$HELP_LAUNCHER" ]]; then
+    warn "${HELP_LAUNCHER} is not an URB launcher; left untouched."
 fi
 
 if [[ -f "${APP_DIR}/${MARKER}" ]]; then

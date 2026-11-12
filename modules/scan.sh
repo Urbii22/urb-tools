@@ -157,13 +157,23 @@ _scan_on_int() {
     [[ -n "$_scan_pid" ]] && kill -INT "$_scan_pid" 2>/dev/null
 }
 
-# scan_run_nmap BASE USE_SUDO objetivo args... → código de salida de nmap
-scan_run_nmap() {
+# scan_build_cmd BASE USE_SUDO args... objetivo → SCAN_CMD (array con el comando EXACTO)
+# Única función que construye el comando de nmap: la usan la ejecución real y
+# la previsualización (--dry-run), así que nunca pueden diferir.
+scan_build_cmd() {
     local base="$1" use_sudo="$2"; shift 2
     local every; every="$(cfg SCAN_STATS_EVERY 2s)"
     [[ "$every" =~ ^[0-9]+(ms|s|m)?$ ]] || every="2s"
-    local -a cmd=(nmap "$@" -v --stats-every "$every" -oA "$base")
-    (( use_sudo )) && cmd=(sudo -n "${cmd[@]}")
+    SCAN_CMD=(nmap "$@" -v --stats-every "$every" -oA "$base")
+    if (( use_sudo )); then SCAN_CMD=(sudo -n "${SCAN_CMD[@]}"); fi
+    return 0
+}
+
+# scan_run_nmap BASE USE_SUDO args... objetivo → código de salida de nmap
+scan_run_nmap() {
+    local base="$1" use_sudo="$2"; shift 2
+    scan_build_cmd "$base" "$use_sudo" "$@"
+    local -a cmd=("${SCAN_CMD[@]}")
     local log="${base}.log" fd line partial="" spin=0 start=$SECONDS rc pct_int bar
     local tty=0; [[ -t 1 ]] && tty=1
     SCAN_PHASE="" SCAN_PCT="" SCAN_ETA=""
@@ -240,6 +250,36 @@ scan_list_results() {
     return 0
 }
 
+# scan_dry_run OBJETIVO PERFIL CARPETA USE_SUDO args... → previsualización sin efectos:
+# no ejecuta nmap, no pide sudo, no crea carpetas ni ficheros y no genera tráfico.
+scan_dry_run() {
+    local target="$1" profile="$2" outdir="$3" use_sudo="$4"; shift 4
+    local -a args=("$@")
+    local root=0 base safe stem n=2 q
+    [[ -z "$outdir" ]] && outdir="$(scan_default_outdir)"
+    outdir="$(urb_expand_path "$outdir")"
+    safe="${target//[^A-Za-z0-9._-]/_}"
+    base="${outdir}/${safe}_${profile}_$(urb_timestamp)"
+    stem="$base"
+    while [[ -e "${base}.nmap" || -e "${base}.gnmap" || -e "${base}.xml" || -e "${base}.log" ]]; do
+        base="${stem}-${n}"; n=$(( n + 1 ))
+    done
+    if scan_needs_root "${args[@]}" && (( EUID != 0 )); then root=1; fi
+    scan_build_cmd "$base" "$(( use_sudo || root ))" "${args[@]}" "$target"
+    printf -v q '%q ' "${SCAN_CMD[@]}"
+    msg_section "RECON ${G_SEP} DRY RUN"
+    printf '  %s%-8s%s %s\n' "$T_LABEL" "Target" "$C_RESET" "$target"
+    printf '  %s%-8s%s %s  %s(%s)%s\n' "$T_LABEL" "Profile" "$C_RESET" "$profile" "$T_DIM" "${args[*]}" "$C_RESET"
+    printf '  %s%-8s%s %s.{nmap,xml,gnmap}\n' "$T_LABEL" "Output" "$C_RESET" "$base"
+    printf '  %s%-8s%s %s\n' "$T_LABEL" "Command" "$C_RESET" "${q% }"
+    if (( root && ! use_sudo )); then
+        msg_warn "These options need root: nmap would run through sudo (add --sudo to skip the question)."
+    fi
+    has_cmd nmap || msg_warn "nmap is not installed (sudo apt install nmap): the real run would fail."
+    msg_dim "  Dry run: nothing was executed, no files were created, no traffic was sent."
+    return 0
+}
+
 # --- CLI ------------------------------------------------------------------------------
 scan_main() {
     local target="" profile ports="" outdir="" save=1 use_sudo=0
@@ -289,10 +329,36 @@ scan_main() {
         msg_err "Invalid port specification: '${ports}'"
         return 2
     fi
-    scan_profile_args "$profile" || return 2
-    local -a args=("${SCAN_ARGS[@]}")
+    # Interfaz INTERNA del Command Engine (lib/engine.sh). No es accesible desde la
+    # CLI ni desde el entorno: requiere un ARRAY de Bash definido en este mismo
+    # proceso (las variables de entorno no pueden ser arrays).
+    #   SCAN_ENGINE_ARGS[]  argumentos de nmap ya resueltos (se validan otra vez)
+    #   SCAN_ENGINE_LABEL   etiqueta del perfil para el nombre de fichero
+    #   SCAN_ENGINE_OPTS[]  "dry-run" → mostrar el comando y no ejecutar nada
+    local engine=0 dry=0 tok
+    if [[ "$(declare -p SCAN_ENGINE_ARGS 2>/dev/null)" == "declare -a"* ]] \
+       && [[ "${SCAN_ENGINE_LABEL:-}" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]]; then
+        engine=1
+        [[ "$(declare -p SCAN_ENGINE_OPTS 2>/dev/null)" == "declare -a"* && " ${SCAN_ENGINE_OPTS[*]} " == *" dry-run "* ]] && dry=1
+    fi
+    local -a args=()
+    if (( engine )); then
+        for tok in "${SCAN_ENGINE_ARGS[@]}"; do
+            is_safe_nmap_token "$tok" || { msg_err "Disallowed nmap option from the command engine: ${tok}"; return 2; }
+        done
+        args=("${SCAN_ENGINE_ARGS[@]}")
+        profile="$SCAN_ENGINE_LABEL"
+    else
+        scan_profile_args "$profile" || return 2
+        args=("${SCAN_ARGS[@]}")
+    fi
     [[ -n "$ports" ]] && args+=(-p "$ports")
     is_ipv6 "$target" && args+=(-6)
+
+    if (( dry )); then
+        scan_dry_run "$target" "$profile" "$outdir" "$use_sudo" "${args[@]}"
+        return $?
+    fi
 
     require_cmd nmap || return 127
 
