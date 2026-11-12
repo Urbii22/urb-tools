@@ -75,5 +75,41 @@ urb god --kill
 
 A comprobar en QTerminal: que los glifos (◆ ▌ ╭ ╰ ❯ ✘ ⚙) se vean bien con la fuente de Kali, los colores de 256, y si QTerminal restaura el título de la ventana (`\e[22;0t` / `\e[23;0t`).
 
-**2026-11-12 · Verificado en vivo en Kali:** Diego confirma que `urb god` funciona en su Kali (QTerminal). Sin datos todavía sobre los puntos de detalle (VPN activa en el HUD, título de la ventana): si aparece algún problema, se anota aquí.
+**2026-11-12 · Verificado en vivo en Kali (God Mode):** Diego confirma que `urb god` funciona en su Kali (QTerminal). Sin datos todavía sobre los puntos de detalle (VPN activa en el HUD, título de la ventana): si aparece algún problema, se anota aquí.
 - Pendiente en Kali: `./install.sh` dos veces seguidas, `git pull && ./install.sh` como actualización, y `./install.sh --link`.
+
+## 2026-11-12 · URB Red v0.1 (`urb red`)
+
+**Arquitectura**
+- **Motor visual de perfiles:** `godmode/god.sh --profile <nombre>` lee `godmode/profiles/*.profile` (datos validados: nombre, etiqueta, sesión, socket, tema y HUD). `god` reproduce exactamente el comportamiento anterior; `red` usa el socket `urb-red`, la sesión `red`, `themes/red.theme` y el HUD `red`.
+- **Contexto de laboratorio:** `lib/lab.sh`. Metadatos en `<lab>/.urb-lab` (`name`, `created`, `target`); `state/active-lab` es solo la referencia al laboratorio seleccionado y se valida al usarla. Prioridad: el directorio actual (`.urb-lab` en él o en un padre) va antes que la selección global. Escrituras atómicas que conservan las demás claves. `ctf_find_lab_root` delega en `lab_find_root`.
+- **Objetivos:** `lab_target_read`/`lab_target_set` (un objetivo principal, `target=`). Es el único punto de acceso, para poder admitir varios objetivos más adelante.
+- **Ejecución:** `recon initial` envuelve `scan_main` (perfil `default`, `-o <lab>/scans`). `scan_main` expone `SCAN_LAST_BASE`/`SCAN_LAST_RC`, conserva el `.log` si nmap falla y no sobrescribe resultados del mismo segundo.
+- **Diagnóstico:** `lib/diagnose.sh`, con reglas como datos (`confirmed`/`possible`/`unknown`). Solo lee el código de salida, el `.log` y el `.nmap`; no hace tráfico de red ni reintentos.
+- **Zsh RED:** segmento laboratorio ▸ objetivo resuelto en Zsh nativo (sin procesos) y la función `urblab` (hace `cd` en la shell actual).
+
+| Feature | Código | Tests | Instalado | Probado en vivo |
+|---|---|---|---|---|
+| `urb red` (shell, HUD rojo, prompt, animación) | ✅ | ✅ | ✅ (HOME temporal) | ✅ WSL en pty; no en QTerminal |
+| `lab new/use/list/path`, `status` | ✅ | ✅ | ✅ | ✅ WSL |
+| `target set/show` (persistente, atómico, validado) | ✅ | ✅ | ✅ | ✅ WSL |
+| `recon initial` (+ `--target` sin guardar) | ✅ | ✅ (nmap simulado) | ✅ | ⏳ nmap real contra un laboratorio |
+| Diagnóstico de errores | ✅ | ✅ | ✅ | ✅ WSL (simulado) |
+| Aislamiento GOD/RED | ✅ | ✅ (pty real) | — | ✅ WSL |
+| `urblab` | ✅ | ✅ | ✅ | ✅ WSL en pty |
+
+**Pendiente de probar en Kali / QTerminal**
+
+```bash
+cd ~/urb-tools && git pull && ./install.sh
+urb red lab new htb-lame --target 10.10.10.3
+urb red status
+openvpn <htb.ovpn>        # en otra terminal
+urb red                    # tema rojo, HUD: LAB htb-lame │ TGT 10.10.10.3 │ ● VPN tun0 …
+#   dentro: cd /tmp → urblab → vuelves al laboratorio
+#   urb red recon initial  → resultados en ~/urb-labs/htb-lame/scans/
+#   urb god (en otra ventana) → sesión GOD independiente
+urb red --kill
+```
+
+**Limitaciones v0.1:** un solo objetivo por laboratorio; `recon initial` usa solo el perfil `default`; el diagnóstico cubre solo nmap; al reconectar con `urb red` se entra en la sesión existente (con su directorio), y el HUD muestra el laboratorio del directorio del panel activo.

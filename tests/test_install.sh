@@ -234,3 +234,16 @@ test_uninstall_warns_but_keeps_running_god_session() {
     _tmux_cleanup "$sock"
     return 0
 }
+
+test_install_includes_red_profile() {
+    bash "$URB_HOME/install.sh" --yes --no-deps >/dev/null 2>&1
+    local f
+    for f in godmode/profiles/god.profile godmode/profiles/red.profile godmode/themes/red.theme lib/lab.sh lib/diagnose.sh modules/red.sh; do
+        assert_file "$(_APP)/$f"
+    done
+    assert_contains "$("$(_LNK)" --no-color red --help)" "urb red recon initial"
+    "$(_LNK)" red lab new instlab --target 10.10.10.10 >/dev/null
+    assert_status 0 bash "$URB_HOME/uninstall.sh" --yes
+    assert_contains "$(cat "$HOME/urb-labs/instlab/.urb-lab")" "target=10.10.10.10"
+    assert_file "$HOME/.local/share/urb-tools/state/active-lab"
+}

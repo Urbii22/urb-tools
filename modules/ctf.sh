@@ -33,15 +33,9 @@ Names: letters, numbers, '.', '_' and '-' (max 64 chars).
 EOF
 }
 
-# Busca hacia arriba la raíz de un laboratorio (.urb-lab) desde una ruta
-ctf_find_lab_root() {
-    local d="${1:-$PWD}"
-    while [[ -n "$d" && "$d" != "/" ]]; do
-        if [[ -f "$d/.urb-lab" ]]; then printf '%s' "$d"; return 0; fi
-        d="$(dirname -- "$d")"
-    done
-    return 1
-}
+# Busca hacia arriba la raíz de un laboratorio (.urb-lab) desde una ruta.
+# La lógica vive en lib/lab.sh (compartida con URB Red).
+ctf_find_lab_root() { lab_find_root "$@"; }
 
 _ctf_report_template() {
     local name="$1" target="$2" date="$3"

@@ -1,0 +1,14 @@
+# =============================================================================
+#  godmode/themes/red.theme — Paleta del perfil URB Red
+#  Se aplica ENCIMA de urb.theme: solo redefine lo que cambia.
+#  Formato de datos: URB_*=números (se valida al leerlo; nunca se ejecuta).
+# =============================================================================
+URB_C_PRIMARY=196
+URB_C_ELECTRIC=160
+URB_C_DEEP=88
+URB_C_GREEN=203
+URB_C_LABEL=131
+URB_C_SEP=237
+URB_C_BG=233
+URB_C_BG2=235
+URB_LOGO_GRADIENT=196 202 160 124 88 52

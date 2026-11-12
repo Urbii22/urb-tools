@@ -22,9 +22,9 @@ URB_HOME="$(cd -P -- "$(dirname -- "$_urb_src")/.." && pwd -P)" || {
 export URB_HOME
 unset _urb_src
 
-for _f in lib/utils.sh lib/ui.sh lib/system.sh lib/dashboard.sh \
+for _f in lib/utils.sh lib/ui.sh lib/system.sh lib/lab.sh lib/diagnose.sh lib/dashboard.sh \
           modules/scan.sh modules/network.sh modules/monitor.sh \
-          modules/logs.sh modules/ctf.sh modules/settings.sh; do
+          modules/logs.sh modules/ctf.sh modules/settings.sh modules/red.sh; do
     # shellcheck source=/dev/null
     source "${URB_HOME}/${_f}" || { echo "urb: failed to load ${_f}" >&2; exit 1; }
 done
@@ -40,6 +40,7 @@ urb_help() {
         ctf|lab)        ctf_help; return 0 ;;
         config|settings) settings_help; return 0 ;;
         god|godmode)    urb_god --help; return $? ;;
+        red)            red_help; return 0 ;;
     esac
     ui_print_logo
     cat <<EOF
@@ -57,6 +58,7 @@ ${C_BOLD}COMMANDS${C_RESET}
   ${T_KEY}ctf${C_RESET} new <name>       Create a CTF/lab workspace (also: list, path)
   ${T_KEY}config${C_RESET} [action]      Show / edit / init user configuration
   ${T_KEY}god${C_RESET} [--help]         URB God Mode: real zsh + tmux workspace with HUD
+  ${T_KEY}red${C_RESET} [command]        URB Red: lab profile (labs, target, recon initial)
   ${T_KEY}doctor${C_RESET}               Check dependencies and environment
   ${T_KEY}help${C_RESET} [command]       Show help (e.g. urb help scan)
   ${T_KEY}version${C_RESET}              Show version
@@ -128,6 +130,7 @@ main() {
         config|settings)     settings_main "$@" ;;
         doctor)              urb_doctor ;;
         god|godmode)         urb_god "$@" ;;
+        red)                 red_main "$@" ;;
         help|-h|--help)      urb_help "$@" ;;
         version|-v|--version) urb_version ;;
         *)

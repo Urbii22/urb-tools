@@ -14,12 +14,15 @@ URB_HOME="$(cd -P -- "${GOD_DIR}/.." && pwd -P)" || exit 0
 source "${URB_HOME}/lib/utils.sh" || exit 0
 # shellcheck source=../../lib/system.sh
 source "${URB_HOME}/lib/system.sh" || exit 0
-# shellcheck source=../themes/urb.theme
-source "${GOD_DIR}/themes/urb.theme" 2>/dev/null
-
 pane_path="${1:-$PWD}"
 width="${2:-120}"
+hud="${3:-god}"
 is_uint "$width" || width=120
+[[ "$hud" =~ ^[a-z]{1,16}$ ]] || hud="god"
+
+# Paleta (datos, no código): base + tema del perfil
+urb_read_theme "${GOD_DIR}/themes/urb.theme"
+[[ "$hud" == "red" ]] && urb_read_theme "${GOD_DIR}/themes/red.theme"
 
 c() { printf '#[fg=colour%s]' "$1"; }
 SEP="$(c "${URB_C_SEP:-238}") │ "
@@ -61,11 +64,48 @@ hud_git() {
     printf '%s' "${branch}${dirty}"
 }
 
+vpn_segment() {
+    if [[ -n "$vpn" ]]; then
+        if (( width >= 110 )); then printf '%s● VPN %s' "$(c "${URB_C_OK:-47}")" "$vpn"
+        else printf '%s● VPN %s' "$(c "${URB_C_OK:-47}")" "${vpn%% *}"; fi
+    else
+        printf '%s○ VPN off' "$(c "${URB_C_DIM:-242}")"
+    fi
+}
+
+vpn="$(sys_vpn_detect 2>/dev/null | head -n 1)"
+vpn="${vpn%/*}"   # "tun0 10.10.14.5" (sin prefijo CIDR)
+
+# --- HUD de URB Red: laboratorio y objetivo primero (lecturas de fichero baratas) ---
+if [[ "$hud" == "red" ]]; then
+    # shellcheck source=../../lib/lab.sh
+    source "${URB_HOME}/lib/lab.sh" || exit 0
+    out=""
+    if lab_resolve "$pane_path"; then
+        lab="$(lab_name "$LAB_ROOT")"
+        tgt="$(lab_target_get "$LAB_ROOT" 2>/dev/null)" || tgt=""
+        out+="$(c "${URB_C_LABEL:-131}")LAB $(c "${URB_C_WHITE:-255}")${lab}"
+        if [[ -n "$tgt" ]]; then out+="${SEP}$(c "${URB_C_LABEL:-131}")TGT $(c "${URB_C_PRIMARY:-196}")${tgt}"
+        else out+="${SEP}$(c "${URB_C_DIM:-242}")TGT not set"; fi
+    else
+        out+="$(c "${URB_C_DIM:-242}")LAB none"
+    fi
+    out+="${SEP}$(vpn_segment)"
+    (( width >= 100 )) && out+="${SEP}$(c "${URB_C_LABEL:-131}")IP $(c "${URB_C_WHITE:-255}")$(sys_local_ip)"
+    if (( width >= 120 )); then
+        cpu="$(hud_cpu)"; sys_mem_read || true
+        is_uint "$cpu" && out+="${SEP}$(c "${URB_C_LABEL:-131}")CPU $(c "$(pct_colour "$cpu")")${cpu}%"
+        out+="${SEP}$(c "${URB_C_LABEL:-131}")RAM $(c "$(pct_colour "$MEM_PCT")")${MEM_PCT}%"
+    fi
+    (( width >= 140 )) && out+="${SEP}$(c "${URB_C_PRIMARY:-196}")$(printf '%(%H:%M)T' -1)"
+    printf '%s ' "$out"
+    exit 0
+fi
+
+# --- HUD de God Mode ----------------------------------------------------------------
 cpu="$(hud_cpu)"
 sys_mem_read || true
 ip="$(sys_local_ip)"
-vpn="$(sys_vpn_detect 2>/dev/null | head -n 1)"
-vpn="${vpn%/*}"   # "tun0 10.10.14.5" (sin prefijo CIDR)
 git_info="$(hud_git "$pane_path")"
 
 out=""
@@ -76,12 +116,7 @@ out+="${SEP}$(c "${URB_C_LABEL:-67}")RAM $(c "$(pct_colour "$MEM_PCT")")${MEM_PC
 # IP local
 (( width >= 80 )) && out+="${SEP}$(c "${URB_C_LABEL:-67}")IP $(c "${URB_C_WHITE:-255}")${ip}"
 # VPN
-if [[ -n "$vpn" ]]; then
-    if (( width >= 110 )); then out+="${SEP}$(c "${URB_C_OK:-47}")● VPN ${vpn}"
-    else out+="${SEP}$(c "${URB_C_OK:-47}")● VPN ${vpn%% *}"; fi
-else
-    out+="${SEP}$(c "${URB_C_DIM:-242}")○ VPN off"
-fi
+out+="${SEP}$(vpn_segment)"
 # Git del directorio del panel activo
 [[ -n "$git_info" ]] && out+="${SEP}$(c "${URB_C_WARN:-220}")git:${git_info}"
 # Hora

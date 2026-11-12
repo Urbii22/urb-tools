@@ -19,20 +19,69 @@ GOD_DIR="$(cd -P -- "$(dirname -- "$(readlink -f -- "${BASH_SOURCE[0]}")")" && p
 URB_HOME="${URB_HOME:-$(cd -P -- "${GOD_DIR}/.." && pwd -P)}"
 export URB_HOME
 
-for _f in "${URB_HOME}/lib/utils.sh" "${URB_HOME}/lib/ui.sh"; do
+for _f in "${URB_HOME}/lib/utils.sh" "${URB_HOME}/lib/ui.sh" "${URB_HOME}/lib/system.sh" "${URB_HOME}/lib/lab.sh"; do
     # shellcheck source=/dev/null
     source "$_f" || { echo "urb god: cannot load ${_f}" >&2; exit 1; }
 done
 unset _f
-# shellcheck source=themes/urb.theme
-source "${GOD_DIR}/themes/urb.theme" || { echo "urb god: cannot load theme" >&2; exit 1; }
+urb_read_theme "${GOD_DIR}/themes/urb.theme" || { echo "urb god: cannot load theme" >&2; exit 1; }
 # shellcheck source=animations/fx.sh
 source "${GOD_DIR}/animations/fx.sh" || { echo "urb god: cannot load animations" >&2; exit 1; }
 
-GOD_SESSION="god"
-GOD_SOCKET="${URB_GOD_SOCKET:-urb-god}"
 GOD_MIN_TMUX="3.0"
 GOD_TMUX_BIN="" GOD_ZSH_BIN="" GOD_TMUX_VER="" GOD_ZSH_VER=""
+
+# --- Perfiles (godmode/profiles/<nombre>.profile) ----------------------------------
+# El perfil define identidad visual y aislamiento: nombre, etiqueta, sesión,
+# socket tmux, tema y HUD. Por defecto "god" (comportamiento de siempre).
+P_PROFILE="god" P_NAME="God Mode" P_TITLE="GOD MODE" P_LABEL="URB GOD" P_TAG="GOD"
+P_CMD="urb god" P_THEME="urb" P_HUD="god"
+GOD_SESSION="god"
+GOD_SOCKET="urb-god"
+
+# god_load_profile NOMBRE → lee el perfil como DATOS (claves y valores validados)
+god_load_profile() {
+    local name="$1" f line k v ovar
+    [[ "$name" =~ ^[a-z]{1,16}$ ]] || { msg_err "Invalid profile name: ${name}"; return 2; }
+    f="${GOD_DIR}/profiles/${name}.profile"
+    [[ -r "$f" ]] || { msg_err "Unknown profile: ${name}"; return 2; }
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        line="${line%$'\r'}"
+        [[ "$line" =~ ^[[:space:]]*(#|$) ]] && continue
+        [[ "$line" =~ ^(PROFILE_[A-Z]+)=([A-Za-z0-9\ ._-]{1,32})$ ]] || { msg_warn "profile ${name}: ignoring invalid line"; continue; }
+        k="${BASH_REMATCH[1]}"; v="${BASH_REMATCH[2]}"
+        case "$k" in
+            PROFILE_NAME)    P_NAME="$v" ;;
+            PROFILE_TITLE)   P_TITLE="$v" ;;
+            PROFILE_LABEL)   P_LABEL="$v" ;;
+            PROFILE_TAG)     [[ "$v" =~ ^[A-Z]{1,8}$ ]] && P_TAG="$v" ;;
+            PROFILE_CMD)     P_CMD="$v" ;;
+            PROFILE_SESSION) [[ "$v" =~ ^[a-z0-9_-]{1,32}$ ]] && GOD_SESSION="$v" ;;
+            PROFILE_SOCKET)  [[ "$v" =~ ^[A-Za-z0-9_-]{1,64}$ ]] && GOD_SOCKET="$v" ;;
+            PROFILE_THEME)   [[ "$v" =~ ^[a-z]{1,16}$ && -r "${GOD_DIR}/themes/${v}.theme" ]] && P_THEME="$v" ;;
+            PROFILE_HUD)     [[ "$v" =~ ^[a-z]{1,16}$ ]] && P_HUD="$v" ;;
+            *) msg_warn "profile ${name}: unknown key ${k}" ;;
+        esac
+    done <"$f"
+    P_PROFILE="$name"
+    # Socket alternativo por variable de entorno (p. ej. URB_GOD_SOCKET, URB_RED_SOCKET)
+    ovar="URB_${P_TAG}_SOCKET"
+    [[ -n "${!ovar:-}" ]] && GOD_SOCKET="${!ovar}"
+    # Tema del perfil encima de la paleta base
+    [[ "$P_THEME" != "urb" ]] && urb_read_theme "${GOD_DIR}/themes/${P_THEME}.theme"
+    return 0
+}
+
+# Degradado del logo según el tema (si la terminal admite 256 colores)
+_god_apply_logo_gradient() {
+    local -a g
+    [[ -n "${URB_LOGO_GRADIENT:-}" ]] || return 0
+    (( URB_COLOR_ON && URB_256 )) || return 0
+    read -ra g <<<"$URB_LOGO_GRADIENT"
+    (( ${#g[@]} >= 6 )) || return 0
+    UI_LOGO_COLORS=()
+    local c; for c in "${g[@]:0:6}"; do UI_LOGO_COLORS+=($'\e[1;38;5;'"${c}m"); done
+}
 
 god_help() {
     cat <<EOF
@@ -134,7 +183,7 @@ god_check() {
     if [[ -n "$GOD_ZSH_BIN" ]]; then printf '  %s%s%s zsh %s  %s(%s)%s\n' "$T_OK" "$G_OK" "$C_RESET" "$GOD_ZSH_VER" "$T_DIM" "$GOD_ZSH_BIN" "$C_RESET"
     else printf '  %s%s%s zsh    %smissing — sudo apt install zsh%s\n' "$T_BAD" "$G_BAD" "$C_RESET" "$T_BAD" "$C_RESET"; fi
     if (( rc == 1 )); then msg_err "tmux ${GOD_TMUX_VER} < ${GOD_MIN_TMUX}"; fi
-    (( rc == 0 )) && msg_ok "God Mode is ready: run 'urb god'."
+    (( rc == 0 )) && msg_ok "${P_NAME} is ready: run '${P_CMD}'."
     return "$rc"
 }
 
@@ -144,11 +193,11 @@ god_status() {
         local wins clients
         wins="$(god_tmux list-windows -t "=${GOD_SESSION}" 2>/dev/null | wc -l)"
         clients="$(god_tmux list-clients -t "=${GOD_SESSION}" 2>/dev/null | wc -l)"
-        msg_ok "God Mode session running: ${wins} window(s), ${clients} attached terminal(s)."
+        msg_ok "${P_NAME} session running: ${wins} window(s), ${clients} attached terminal(s)."
         god_tmux list-panes -s -t "=${GOD_SESSION}" -F '    #{window_index}.#{pane_index}  #{pane_current_command}  #{pane_current_path}' 2>/dev/null
-        msg_dim "    'urb god' to reconnect · 'urb god --kill' to end it"
+        msg_dim "    '${P_CMD}' to reconnect · '${P_CMD} --kill' to end it"
     else
-        msg_info "No God Mode session running."
+        msg_info "No ${P_NAME} session running."
     fi
     return 0
 }
@@ -156,21 +205,40 @@ god_status() {
 god_kill() {
     local assume_yes="${1:-0}" busy
     god_check_deps || return $?
-    if ! god_session_exists; then msg_info "No God Mode session running."; return 0; fi
+    if ! god_session_exists; then msg_info "No ${P_NAME} session running."; return 0; fi
     if [[ -n "${TMUX:-}" && "$TMUX" == *"/${GOD_SOCKET},"* ]]; then
-        msg_warn "You are inside God Mode: this will close the current terminal session too."
+        msg_warn "You are inside ${P_NAME}: this will close the current terminal session too."
     fi
     # Procesos que no son una shell en espera
     busy="$(god_tmux list-panes -s -t "=${GOD_SESSION}" -F '#{pane_current_command}' 2>/dev/null \
             | grep -v -x -E 'zsh|bash|sh|-zsh|-bash' | sort -u | tr '\n' ' ')"
     if [[ -n "$busy" && "$assume_yes" != "1" ]]; then
-        msg_warn "Programs still running in God Mode: ${busy}"
-        confirm "End the God Mode session and terminate them?" n || { msg_info "Cancelled."; return 1; }
+        msg_warn "Programs still running in ${P_NAME}: ${busy}"
+        confirm "End the ${P_NAME} session and terminate them?" n || { msg_info "Cancelled."; return 1; }
     fi
-    # Solo el servidor del socket de God Mode: nunca otros servidores tmux
-    if god_tmux kill-server 2>/dev/null; then msg_ok "God Mode session ended."; return 0; fi
-    msg_err "Could not end the God Mode session."
+    # Solo el servidor del socket de este perfil: nunca otros servidores tmux
+    if god_tmux kill-server 2>/dev/null; then msg_ok "${P_NAME} session ended."; return 0; fi
+    msg_err "Could not end the ${P_NAME} session."
     return 1
+}
+
+# Líneas informativas reales para la animación de entrada
+_god_engage_info() {
+    local resume="$1" where="${PWD/#$HOME/\~}"
+    GOD_INFO=("tmux ${GOD_TMUX_VER} · zsh ${GOD_ZSH_VER}")
+    if (( resume )); then GOD_INFO+=("session: reconnecting to running ${P_NAME}")
+    else GOD_INFO+=("session: new · ${where}"); fi
+    if [[ "$P_HUD" == "red" ]]; then
+        if lab_resolve "$PWD"; then
+            local t; t="$(lab_target_get "$LAB_ROOT" 2>/dev/null)"
+            GOD_INFO+=("lab: $(lab_name "$LAB_ROOT") (${LAB_SOURCE}) · target: ${t:-not set}")
+        else
+            GOD_INFO+=("lab: none — urb red lab new <name> --target <ip>")
+        fi
+        GOD_INFO+=("HUD: LAB · TARGET · VPN · IP · CPU · RAM")
+    else
+        GOD_INFO+=("HUD: CPU · RAM · IP · VPN · git")
+    fi
 }
 
 god_start() {
@@ -179,49 +247,47 @@ god_start() {
     _god_anim_enabled || use_anim=0
 
     if [[ ! -t 0 || ! -t 1 ]]; then
-        msg_err "God Mode needs an interactive terminal."
+        msg_err "${P_NAME} needs an interactive terminal."
         return 1
     fi
     god_check_deps || return $?
 
     if [[ -n "${TMUX:-}" ]]; then
         if [[ "$TMUX" == *"/${GOD_SOCKET},"* ]]; then
-            msg_warn "You are already in God Mode."
+            msg_warn "You are already in ${P_NAME}."
         else
-            msg_err "You are inside another tmux session. Detach first (Ctrl+B d) and run 'urb god' again."
-            msg_dim "    God Mode does not nest inside tmux, to avoid conflicts with your sessions."
+            msg_err "You are inside another tmux session. Detach first (Ctrl+B d) and run '${P_CMD}' again."
+            msg_dim "    ${P_NAME} does not nest inside tmux, to avoid conflicts with your sessions."
         fi
         return 1
     fi
 
     ui_term_size
     if (( UI_COLS < 40 || UI_ROWS < 10 )); then
-        msg_err "Terminal too small for God Mode (${UI_COLS}x${UI_ROWS}, minimum 40x10)."
+        msg_err "Terminal too small for ${P_NAME} (${UI_COLS}x${UI_ROWS}, minimum 40x10)."
         return 1
     fi
 
-    # Entorno para tmux.conf (colores, rutas, terminfo) — solo para este servidor
+    # Entorno para tmux.conf (colores, rutas, terminfo, perfil) — solo para este servidor
     local term="screen-256color" pos mouse resume=0 rc
     if infocmp tmux-256color >/dev/null 2>&1; then term="tmux-256color"; fi
     pos="$(cfg GOD_HUD_POSITION top)"; [[ "$pos" == "bottom" ]] || pos="top"
     mouse="$(cfg GOD_MOUSE 0)"
-    set -a
-    # shellcheck source=themes/urb.theme
-    source "${GOD_DIR}/themes/urb.theme"
-    set +a
+    urb_read_theme "${GOD_DIR}/themes/urb.theme" 1
+    [[ "$P_THEME" != "urb" ]] && urb_read_theme "${GOD_DIR}/themes/${P_THEME}.theme" 1
     export URB_GOD_DIR="$GOD_DIR" URB_GOD_TERM="$term" URB_GOD_HUD_POSITION="$pos"
+    export URB_PROFILE="$P_PROFILE" URB_PROFILE_TAG="$P_TAG" URB_PROFILE_LABEL="$P_LABEL" \
+           URB_PROFILE_THEME="$P_THEME" URB_PROFILE_HUD="$P_HUD" URB_PROFILE_CMD="$P_CMD"
+    _god_apply_logo_gradient
+    FX_TITLE="$P_TITLE"
 
     god_session_exists && resume=1
 
     # Animación de entrada (interrumpible; la terminal se restaura siempre)
     trap 'printf "\e[0m\e[?25h\e[?1049l"; exit 130' INT TERM HUP
     if (( use_anim )); then
-        local where="${PWD/#$HOME/\~}"
-        if (( resume )); then
-            god_fx_engage "tmux ${GOD_TMUX_VER} · zsh ${GOD_ZSH_VER}" "session: reconnecting to running God Mode" "HUD: CPU · RAM · IP · VPN · git"
-        else
-            god_fx_engage "tmux ${GOD_TMUX_VER} · zsh ${GOD_ZSH_VER}" "session: new · ${where}" "HUD: CPU · RAM · IP · VPN · git"
-        fi
+        _god_engage_info "$resume"
+        god_fx_engage "${GOD_INFO[@]}"
     fi
 
     if (( ! resume )); then
@@ -230,17 +296,19 @@ god_start() {
         if ! god_tmux -f "${GOD_DIR}/tmux.conf" new-session -d -s "$GOD_SESSION" -c "$PWD" \
                 -x "$UI_COLS" -y "$UI_ROWS" \
                 env ZDOTDIR="${GOD_DIR}/zsh" URB_GOD=1 URB_GOD_DIR="$GOD_DIR" URB_HOME="$URB_HOME" \
-                    URB_USER_ZDOTDIR="${ZDOTDIR:-$HOME}" "$GOD_ZSH_BIN" -i; then
+                    URB_USER_ZDOTDIR="${ZDOTDIR:-$HOME}" URB_PROFILE="$P_PROFILE" URB_PROFILE_TAG="$P_TAG" \
+                    URB_PROFILE_THEME="$P_THEME" URB_PROFILE_CMD="$P_CMD" "$GOD_ZSH_BIN" -i; then
             trap - INT TERM HUP
-            msg_err "Could not start the God Mode tmux session."
+            msg_err "Could not start the ${P_NAME} tmux session."
             return 1
         fi
-        # Nuevas ventanas/paneles: también Zsh de God Mode, en el directorio del panel
-        god_tmux set-environment -t "=${GOD_SESSION}" ZDOTDIR "${GOD_DIR}/zsh"
-        god_tmux set-environment -t "=${GOD_SESSION}" URB_GOD 1
-        god_tmux set-environment -t "=${GOD_SESSION}" URB_GOD_DIR "$GOD_DIR"
-        god_tmux set-environment -t "=${GOD_SESSION}" URB_HOME "$URB_HOME"
-        god_tmux set-environment -t "=${GOD_SESSION}" URB_USER_ZDOTDIR "${ZDOTDIR:-$HOME}"
+        # Nuevas ventanas/paneles: también la Zsh del perfil, en el directorio del panel
+        local kv
+        for kv in "ZDOTDIR=${GOD_DIR}/zsh" "URB_GOD=1" "URB_GOD_DIR=${GOD_DIR}" "URB_HOME=${URB_HOME}" \
+                  "URB_USER_ZDOTDIR=${ZDOTDIR:-$HOME}" "URB_PROFILE=${P_PROFILE}" "URB_PROFILE_TAG=${P_TAG}" \
+                  "URB_PROFILE_THEME=${P_THEME}" "URB_PROFILE_CMD=${P_CMD}"; do
+            god_tmux set-environment -t "=${GOD_SESSION}" "${kv%%=*}" "${kv#*=}"
+        done
         god_tmux set-option -t "=${GOD_SESSION}" default-command "$zcmd" >/dev/null
         [[ "$mouse" == "1" ]] && god_tmux set-option -g mouse on >/dev/null
     fi
@@ -253,38 +321,41 @@ god_start() {
     printf '\e[23;0t'
 
     if (( rc != 0 )) && god_session_exists; then
-        msg_err "Could not attach to the God Mode session (tmux exit ${rc})."
-        msg_dim "    The session is still running: 'urb god' to retry, 'urb god --kill' to end it."
+        msg_err "Could not attach to the ${P_NAME} session (tmux exit ${rc})."
+        msg_dim "    The session is still running: '${P_CMD}' to retry, '${P_CMD} --kill' to end it."
         return 1
     fi
 
     if god_session_exists; then
-        (( use_anim )) && god_fx_disengage "GOD MODE ${G_SEP} DETACHED"
-        msg_info "Detached from God Mode: your programs keep running."
-        msg_dim "    'urb god' to return · 'urb god --kill' to end the session"
+        (( use_anim )) && god_fx_disengage "${P_TITLE} ${G_SEP} DETACHED"
+        msg_info "Detached from ${P_NAME}: your programs keep running."
+        msg_dim "    '${P_CMD}' to return · '${P_CMD} --kill' to end the session"
     else
-        (( use_anim )) && god_fx_disengage "GOD MODE OFF"
-        printf '%s%s God Mode off. Back to your terminal.%s\n' "$T_DIM" "$G_DIAM" "$C_RESET"
+        (( use_anim )) && god_fx_disengage "${P_TITLE} OFF"
+        printf '%s%s %s off. Back to your terminal.%s\n' "$T_DIM" "$G_DIAM" "$P_NAME" "$C_RESET"
     fi
     return 0
 }
 
 god_main() {
-    local action="start" anim_opt="" assume_yes=0
+    local action="start" anim_opt="" assume_yes=0 profile="god" help=0
     while (( $# > 0 )); do
         case "$1" in
-            -h|--help|help) god_help; return 0 ;;
+            -h|--help|help) help=1 ;;
             --no-anim)      anim_opt="--no-anim" ;;
             --status|status) action="status" ;;
             --kill|kill)    action="kill" ;;
             --check|check)  action="check" ;;
             -y|--yes)       assume_yes=1 ;;
+            --profile)      [[ $# -ge 2 ]] || { msg_err "--profile needs a value"; return 2; }; profile="$2"; shift ;;
             *) msg_err "Unknown option for 'urb god': $1"; msg_dim "    See: urb god --help"; return 2 ;;
         esac
         shift
     done
+    god_load_profile "$profile" || return 2
+    if (( help )); then god_help; return 0; fi
     if [[ ! "$GOD_SOCKET" =~ ^[A-Za-z0-9_-]{1,64}$ ]]; then
-        msg_err "Invalid URB_GOD_SOCKET name."; return 2
+        msg_err "Invalid URB_${P_TAG}_SOCKET name."; return 2
     fi
     case "$action" in
         start)  god_start "$anim_opt" ;;

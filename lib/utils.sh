@@ -288,10 +288,24 @@ config_set() {
     URB_CFG["$key"]="$val"
 }
 
+# urb_read_theme FICHERO [exportar] → asigna URB_*=números (datos, sin ejecutar)
+urb_read_theme() {
+    local f="$1" exp="${2:-0}" line k v
+    [[ -r "$f" ]] || return 1
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        line="${line%$'\r'}"
+        [[ "$line" =~ ^(URB_[A-Z0-9_]{1,40})=([0-9][0-9\ ]{0,40})$ ]] || continue
+        k="${BASH_REMATCH[1]}"; v="${BASH_REMATCH[2]}"
+        printf -v "$k" '%s' "$v"
+        if (( exp )); then export "${k?}"; fi
+    done <"$f"
+    return 0
+}
+
 # Inicialización cuando un módulo se ejecuta directamente (bash modules/x.sh)
 urb_standalone_init() {
     local f
-    for f in lib/ui.sh lib/system.sh modules/ctf.sh modules/scan.sh; do
+    for f in lib/ui.sh lib/system.sh lib/lab.sh lib/diagnose.sh modules/ctf.sh modules/scan.sh; do
         # shellcheck source=/dev/null
         source "${URB_HOME}/${f}" || { msg_err "Cannot load ${f}"; return 1; }
     done

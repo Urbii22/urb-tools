@@ -73,3 +73,12 @@ test_scan_inside_lab_uses_lab_dir() {
     ( cd "$HOME/labs/box1/notes" && "$URB_HOME/bin/urb" --no-color scan 127.0.0.1 --profile quick -p 1-100 >/dev/null 2>&1 )
     ls "$HOME"/labs/box1/scans/127.0.0.1_quick_*.nmap >/dev/null 2>&1 || _fail "scan not saved into lab scans/"
 }
+
+test_scan_never_overwrites_previous_results() {
+    mkdir -p "$HOME/mockbin"
+    printf '#!/usr/bin/env bash\nb=""; p=""; for a in "$@"; do [[ "$p" == "-oA" ]] && b="$a"; p="$a"; done\necho run >"${b}.nmap"; : >"${b}.gnmap"; : >"${b}.xml"\n' >"$HOME/mockbin/nmap"
+    chmod +x "$HOME/mockbin/nmap"
+    local i
+    for i in 1 2 3; do PATH="$HOME/mockbin:$PATH" "$URB_HOME/bin/urb" --no-color scan 10.0.0.1 --profile quick -o "$HOME/out" >/dev/null 2>&1; done
+    assert_eq "$(find "$HOME/out" -name '*.nmap' | wc -l)" "3"
+}

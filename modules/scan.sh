@@ -244,6 +244,8 @@ scan_list_results() {
 scan_main() {
     local target="" profile ports="" outdir="" save=1 use_sudo=0
     profile="$(cfg SCAN_DEFAULT_PROFILE default)"
+    # Información de la última ejecución (para diagnósticos como lib/diagnose.sh)
+    SCAN_LAST_BASE="" SCAN_LAST_RC=""
 
     case "${1:-}" in
         profiles)
@@ -321,6 +323,12 @@ scan_main() {
     fi
     local safe="${target//[^A-Za-z0-9._-]/_}"
     local base; base="${outdir}/${safe}_${profile}_$(urb_timestamp)"
+    # Nunca sobrescribir resultados anteriores (dos escaneos en el mismo segundo)
+    local stem="$base" n=2
+    while [[ -e "${base}.nmap" || -e "${base}.gnmap" || -e "${base}.xml" || -e "${base}.log" ]]; do
+        base="${stem}-${n}"; n=$(( n + 1 ))
+    done
+    SCAN_LAST_BASE="$base"
 
     msg_section "RECON ${G_SEP} NMAP"
     printf '  %sTarget%s   %s\n'  "$T_LABEL" "$C_RESET" "$target"
@@ -331,6 +339,7 @@ scan_main() {
 
     local rc
     scan_run_nmap "$base" "$use_sudo" "${args[@]}" "$target"; rc=$?
+    SCAN_LAST_RC="$rc"
 
     if (( use_sudo )); then
         sudo -n chown -- "$(id -u):$(id -g)" "${base}".* 2>/dev/null || true
@@ -348,7 +357,10 @@ scan_main() {
     fi
 
     if (( save )); then
-        rm -f -- "${base}.log"
+        # El registro se conserva solo si nmap falló (útil para diagnosticar)
+        if (( rc == 0 )); then rm -f -- "${base}.log"
+        elif [[ -s "${base}.log" ]]; then msg_dim "    Log kept: ${base}.log"
+        fi
         [[ -e "${base}.nmap" ]] && msg_ok "Results saved: ${base}.nmap (also .xml, .gnmap)"
     else
         rm -rf -- "$tmpdir"

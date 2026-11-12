@@ -74,7 +74,7 @@ god_fx_engage() {
     done
 
     # 4) Destello final
-    local msg=" GOD MODE ONLINE "
+    local msg=" ${FX_TITLE:-GOD MODE} ONLINE "
     for col in "${URB_C_WHITE:-255}" "${URB_C_PRIMARY:-51}"; do
         _fx_at $(( r + 1 )) $(( (UI_COLS - ${#msg}) / 2 + 1 ))
         if (( URB_COLOR_ON )); then printf '\e[1;38;5;%s;48;5;%sm%s\e[0m' "${URB_C_INK:-16}" "$col" "$msg"

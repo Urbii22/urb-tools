@@ -27,6 +27,7 @@ de terminal: es una aplicación independiente que se abre con `urb`.
 | **MONITOR** (`urb monitor`) | ✅ operativo | Monitor a pantalla completa: CPU total y por núcleo, RAM, swap, discos y procesos (ordenar por CPU/MEM). `--once` para una instantánea. |
 | **LOGS** (`urb logs`) | ✅ v1 | Fallos de autenticación, eventos SSH, errores del sistema y búsqueda por fechas, usuario, IP o texto. Lee `auth.log`/`syslog` o journald. Resumen con top de IPs y usuarios. |
 | **CTF** (`urb ctf`) | ✅ operativo | Crea laboratorios `scans/ exploits/ evidence/ notes/ report.md`. Si ejecutas `urb scan` dentro de un laboratorio, los resultados van a su `scans/`. |
+| **URB Red** (`urb red`) | ✅ v0.1 | Perfil para laboratorios sobre God Mode: tema rojo; HUD y prompt con laboratorio, objetivo y VPN; objetivo persistente; `recon initial` con diagnóstico de errores. Ver [URB Red](#urb-red-urb-red--v01). |
 | **God Mode** (`urb god`) | ✅ v1 | Zsh real dentro de un tmux aislado en la misma ventana, con HUD (CPU, RAM, IP, VPN, Git), prompt URB y animaciones de entrada y salida. Ver [God Mode](#god-mode-urb-god). |
 | **SETTINGS** (`urb config`) | ✅ operativo | Ver/editar configuración, activar/desactivar animaciones, motor de menús (propio o `fzf`), `urb doctor`. |
 
@@ -216,6 +217,51 @@ Dentro funcionan los atajos estándar de tmux: `Ctrl+B c` abre una ventana nueva
 
 ---
 
+## URB Red (`urb red`) — v0.1
+
+URB Red es el primer **perfil especializado** sobre la infraestructura de God Mode, pensado para laboratorios (HTB, THM, VulnHub, laboratorios propios). Es la misma Zsh real dentro de tmux, con estas diferencias:
+
+- **Tema rojo** y etiqueta `URB RED`.
+- **HUD:** laboratorio activo, objetivo, VPN e IP; en ventanas anchas, también CPU y RAM.
+- **Prompt:** `╭─[RED]─[htb-lame ▸ 10.10.10.3]─[ruta]─[git]`.
+- **Sesión tmux propia** (socket `urb-red`, sesión `red`): abrir, desconectar o terminar RED no afecta a `urb god`, y al revés.
+
+Dentro de RED, Ctrl+C, `exit`, `Ctrl+B d`, `--kill` y la reconexión funcionan igual que en God Mode.
+
+```bash
+# Laboratorios (son los mismos que crea 'urb ctf')
+urb red lab new htb-lame --target 10.10.10.3   # crea el laboratorio y lo selecciona
+urb red lab use htb-lame                       # selecciona uno que ya existe
+urb red lab list                               # lista (indica el seleccionado)
+urb red status                                 # laboratorio, objetivo, escaneos, VPN y sesión
+
+# Objetivo (se guarda en <lab>/.urb-lab y sobrevive al cierre de la terminal)
+urb red target set 10.10.10.3
+urb red target show
+
+# Reconocimiento inicial: perfil nmap 'default' (-sV) contra el objetivo del laboratorio
+urb red recon initial
+urb red recon initial --target 10.10.10.30     # solo para esta ejecución; no cambia el guardado
+
+# Shell
+urb red                    # abrir URB Red (--no-anim, --kill [--yes], --session)
+```
+
+**Qué laboratorio se usa.** Primero el del **directorio actual**: si estás dentro de un laboratorio (hay un `.urb-lab` en el directorio o en uno de sus padres), se usa ese. Si no, el **seleccionado** con `urb red lab use`. Antes de cualquier operación de red, `recon initial` muestra qué laboratorio y qué objetivo va a usar y de dónde salen.
+
+**`urblab [nombre]`** es una función de la Zsh de RED que cambia el directorio de *esa misma* shell al laboratorio, sin abrir otra.
+
+**`recon initial`** reutiliza el motor de `urb scan`: progreso real de nmap, tabla de puertos y servicios, y resultados en `<lab>/scans/` (`.nmap`, `.xml`, `.gnmap`). Si dos escaneos coinciden en el mismo segundo, no se sobrescriben. Si nmap falla, se conserva el `.log` y se muestra un **diagnóstico**:
+- `confirmed`: nmap o el sistema lo han dicho explícitamente. Por ejemplo, que no se puede resolver el nombre (falta la entrada en `/etc/hosts`), que hacen falta permisos de root o que la red no es alcanzable.
+- `possible`: una hipótesis, **no comprobada**. Por ejemplo, «Host seems down»: no demuestra que el host esté apagado; puede estar bloqueando las sondas de ping o la VPN puede estar caída.
+- `unknown`: no se reconoce la causa, y se indica dónde está el log.
+
+El diagnóstico no lanza pings, consultas ni reintentos: solo lee lo que ya produjo la ejecución.
+
+**Seguridad:** los ficheros `.urb-lab`, `state/active-lab`, `*.profile` y `*.theme` son **datos**: se leen línea a línea, se validan y nunca se ejecutan. Las escrituras son atómicas (fichero temporal + `mv`) y conservan las demás claves. No se usa root por defecto, no queda ningún proceso residente y no se escanea nada en segundo plano al entrar en RED.
+
+---
+
 ## Arquitectura
 
 ```
@@ -225,15 +271,18 @@ urb-tools/
 │   ├── utils.sh          # colores, mensajes, validación de entradas, config segura
 │   ├── ui.sh             # motor TUI: tema, cajas, barras, búfer de dibujo, teclado, menús
 │   ├── system.sh         # lectura de datos reales (/proc, ip, df…)
+│   ├── lab.sh            # contexto de laboratorio y objetivo (.urb-lab, active-lab)
+│   ├── diagnose.sh       # diagnóstico de errores (confirmed / possible / unknown)
 │   └── dashboard.sh      # URB Terminal (dashboard principal)
-├── modules/              # scan, network, monitor, logs, ctf, settings
+├── modules/              # scan, network, monitor, logs, ctf, settings, red
 ├── godmode/              # URB God Mode (independiente de los módulos)
 │   ├── god.sh            # activación, sesión tmux aislada, salida, --status/--kill
 │   ├── tmux.conf         # configuración tmux propia (nunca usa ~/.tmux.conf)
-│   ├── zsh/              # ZDOTDIR temporal: carga tu ~/.zshrc + prompt URB
+│   ├── profiles/         # perfiles visuales: god.profile, red.profile (datos)
+│   ├── zsh/              # ZDOTDIR temporal: carga tu ~/.zshrc + prompt URB/RED + urblab
 │   ├── hud/status.sh     # HUD de la barra de estado (datos reales)
 │   ├── animations/fx.sh  # animaciones de entrada y salida
-│   └── themes/urb.theme  # paleta compartida (Bash, Zsh y tmux)
+│   └── themes/           # urb.theme (base) y red.theme (datos: Bash, Zsh y tmux)
 ├── config/default.conf
 ├── tests/                # runner en Bash puro + fixtures
 ├── install.sh / uninstall.sh
