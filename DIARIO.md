@@ -296,3 +296,87 @@ urb red                                    # dentro: urb red recon <Tab><Tab> ·
 ```
 
 **Limitaciones:** el motor gestiona `red recon` y `serve`; el resto de comandos conserva su propio análisis de argumentos (migrarlos es trabajo futuro). Los ejemplos de `.spec` están en inglés, como el resto de la ayuda de la CLI; el manual está en español. `urb manual` usa `less` (sin renderizar Markdown).
+
+## 2026-11-12 · Dashboard 2.0: centro de control (GOD, RED, BLUE, Zsh normal)
+
+**Entorno de prueba:** WSL Ubuntu 26.04 (bash 5.3, tmux 3.6, zsh), pseudo-terminal real con `script` y capturas de pantalla con `tmux capture-pane`. **No se ha probado en QTerminal ni en Kali**: nada de lo de abajo es una prueba visual en QTerminal.
+
+**Qué cambia**
+- **Menú en tres secciones**, todo a una tecla y sin submenús:
+  - TERMINAL ENVIRONMENTS: `G` GOD · `R` RED · `B` BLUE (*COMING SOON*, atenuado y no seleccionable) · `Z` NORMAL SHELL.
+  - CYBERSECURITY TOOLS: `1`–`5`, con los mismos números de siempre.
+  - SYSTEM: `6` SETTINGS · `S` SESSIONS · `H` HELP · `Q`/`Esc` EXIT. El refresco manual pasa de `r` a `Ctrl+L`.
+- **Elementos como datos** (`DASH_ITEMS`: sección, tecla, tipo, destino, estado `ready`/`soon`). Un perfil futuro (DEV, BLUE) es una línea más su `.profile`.
+- **GOD y RED:** se lanzan como procesos hijos con los lanzadores de siempre (`urb_god`, `red_main`, `sessions_attach`, que hacen `exec god.sh` dentro de una subshell). No hay ninguna implementación paralela.
+  - Al volver se distingue entre detach, salida y fallo, usando el código de `god.sh` y el estado real de la sesión **después**.
+  - El menú muestra `● detached` / `● attached` en vivo.
+- **NORMAL SHELL:** `zsh -i` real en el directorio actual, con la configuración del usuario.
+  - Si `urb` se abrió dentro de GOD/RED, se restaura el `ZDOTDIR` del usuario y se quitan `URB_GOD`, `URB_PROFILE*` y las opciones globales (`-y`).
+  - `exit` vuelve al dashboard. Si falta zsh o termina al arrancar, aparece un aviso y se sigue en el menú.
+- **Diseño adaptable:** mínimo 50×12, arriba a la izquierda.
+  - Primero se ocultan los paneles de información y después el menú se desplaza (`↑ more` / `↓ more`).
+  - Desde 100 columnas, el menú va a la izquierda y los paneles se apilan a la derecha.
+- **`START_MODE=dashboard|god|red`** (por defecto `dashboard`). Se valida en `urb config set`; `blue` y otros valores se rechazan con el código 2.
+  - Si el valor guardado no es válido o el entorno no abre, se informa y se abre el dashboard.
+  - `urb dashboard` abre siempre el menú.
+
+**Estado de la terminal (`lib/ui.sh`)**
+- Un único punto de entrada y salida, idempotente: `ui_screen_enter` / `ui_screen_leave`.
+- El `stty` se guarda una vez (el de la shell que lanzó `urb`) y es el que se restaura siempre.
+- `ui_mouse_reset` apaga solo los modos de informe de ratón (1000/1002/1003/1005/1006/1015), y solo tras un hijo con tmux. No toca 1007 ni otras preferencias.
+- **Traps:** se añaden `QUIT` (antes, `Ctrl+\` mataba la TUI sin pasar por `EXIT` y dejaba la pantalla alternativa y el eco apagado) y `TSTP` (antes, `Ctrl+Z` detenía la TUI y devolvía la shell en la pantalla alternativa).
+- Mientras corre un hijo, el dashboard instala manejadores no-op (no «ignorar», que heredaría el hijo). La señal llega al hijo con su acción normal y Bash ejecuta el manejador cuando el hijo termina.
+
+**Rueda del ratón (investigación).** Hipótesis: si la shell se queda en la **pantalla alternativa**, QTerminal (como otros terminales con *alternate scroll*) convierte la rueda en flechas ↑/↓, y Zsh recorre el historial. Sin reproducir en QTerminal, así que **no está confirmado**. Lo que sí se reprodujo en pty:
+- **`godmode/god.sh`: Ctrl+C durante la animación de salida** (tras `Ctrl+B d` o `exit`) dejaba la terminal en la pantalla alternativa y con el cursor oculto, **3 de 3 veces**. `god_fx_disengage` entraba en ella sin trap.
+  - Corregido con `_god_fx_out` (trap que restaura y sale con 130); con el arreglo, 3 de 3 restauradas.
+  - Test de regresión: `test_god_ctrl_c_during_exit_animation_restores_screen`.
+- `Ctrl+\` y `Ctrl+Z` en el dashboard tenían el mismo efecto (corregido, ver arriba).
+- El dashboard 2.0 abre la Zsh normal y GOD/RED **fuera** de la pantalla alternativa (comprobado en el flujo de bytes).
+
+| Feature | Código | Tests | Instalado | Probado en vivo |
+|---|---|---|---|---|
+| Menú en secciones, todas las opciones, BLUE deshabilitado | ✅ | ✅ | — | ✅ WSL (pty + capture-pane 120x40, 80x24, 60x16, 50x12); ❌ QTerminal |
+| Navegación (↑↓ salta BLUE, teclas, desplazamiento) | ✅ | ✅ | — | ✅ WSL pty |
+| GOD desde el menú: detach → menú, reconexión a la misma sesión, procesos vivos, exit | ✅ | ✅ | — | ✅ WSL pty; ❌ QTerminal |
+| RED desde el menú, aislamiento GOD/RED | ✅ | ✅ | — | ✅ WSL pty; ❌ QTerminal/Kali |
+| NORMAL SHELL (directorio, alias, sin variables URB, Ctrl+C, exit → menú) | ✅ | ✅ | — | ✅ WSL pty; ❌ QTerminal |
+| SESSIONS (reconectar) y sesión compartida con otra terminal (2 clientes, sin robarla) | ✅ | ✅ | — | ✅ WSL pty |
+| tmux anidado, errores de arranque (falta tmux/zsh, zsh que sale) | ✅ | ✅ | — | ✅ WSL pty |
+| Señales (Ctrl+C/\/Z en el menú; hijo muerto por SIGINT) y stty/cursor/pantalla restaurados | ✅ | ✅ | — | ✅ WSL pty |
+| `START_MODE` (validación, god, red, inválido, recuperación) | ✅ | ✅ | — | ✅ WSL pty |
+| Ctrl+C en la animación de salida de GOD/RED | ✅ | ✅ | — | ✅ WSL pty (reproducido y corregido) |
+| Rueda del ratón en QTerminal tras GOD/RED | — | — | — | ❌ pendiente: solo hipótesis |
+
+Resultado: `bash tests/run.sh` → 158/158 · `shellcheck -S warning` → 0 avisos. No se ha instalado con `./install.sh` en esta sesión.
+
+**Prueba en Kali / QTerminal** (instalar primero: `cd ~/urb-tools && git pull && ./install.sh`). En cada paso, comprueba también la rueda del ratón **sobre la salida de la shell** (debe desplazar el texto, no recorrer el historial):
+
+```bash
+seq 1 300                      # 0) referencia: la rueda desplaza la salida ANTES de usar urb
+urb                            # 1) dashboard: secciones, BLUE atenuado "COMING SOON"; ↑↓ salta BLUE
+#    B → "coming soon"; redimensiona la ventana pequeña → el menú se desplaza (↓ more)
+#    Z → "Normal zsh (opened from URB)"; prompt de siempre, sin HUD
+seq 1 300                      # 2) rueda en la Zsh normal → desplaza la salida
+exit                           #    → vuelve al dashboard
+#    G → GOD; ejecuta: sleep 600 ; luego Ctrl+B d → menú con "God Mode detached" y GOD "● detached"
+#    G → reconecta: sigue el sleep (Ctrl+C lo corta); exit → "God Mode session ended (exit)"
+#    R → RED con el laboratorio/objetivo de la carpeta; Ctrl+B d → menú; S → Enter en URB Red → reconecta → Ctrl+B d
+#    q → QTerminal
+seq 1 300                      # 3) rueda tras salir de urb → debe desplazar la salida
+urb red                        # 4) sin dashboard: Ctrl+B d e INMEDIATAMENTE Ctrl+C durante la animación de salida
+seq 1 300                      #    rueda → debe desplazar (antes del arreglo la terminal quedaba en pantalla alternativa)
+urb config set START_MODE god && urb   # 5) entra directo en GOD; Ctrl+B d → vuelve a QTerminal
+urb config set START_MODE dashboard
+urb sessions                   # 6) estado final; urb sessions kill red / god si quieres cerrarlas
+```
+
+Si la rueda falla en algún paso, anota **en cuál**, y prueba `printf '\e[?1049l'`: si eso lo arregla, la terminal se había quedado en la pantalla alternativa.
+
+**Limitaciones:**
+- Los entornos tmux necesitan que `urb` no corra dentro de otro tmux (por diseño).
+- Con `START_MODE=god|red`, `urb` espera a que termine GOD/RED como proceso hijo (para poder recuperar el dashboard si falla).
+- BLUE no tiene perfil ni módulos (a propósito).
+- Sin `~/.zshrc`, una Zsh real abre su asistente de primer uso (`zsh-newuser-install`) también desde NORMAL SHELL. Es lo esperado; en Kali el `.zshrc` ya existe.
+
+Instalación comprobada: `./install.sh --yes` en un HOME temporal de WSL; el `urb` instalado abre GOD, hace detach y vuelve al menú, abre la Zsh normal y vuelve, y sale con código 0. La sesión GOD sigue viva.

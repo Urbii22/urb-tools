@@ -216,3 +216,21 @@ test_god_existing_commands_unaffected() {
     assert_status 0 "$urb" config show
     assert_status 2 "$urb" scan
 }
+
+# Regresión: Ctrl+C durante la animación de SALIDA (tras Ctrl+B d) dejaba la
+# shell en la pantalla alternativa y con el cursor oculto (reproducido 3/3 en
+# pty). Ahora la animación está protegida por un trap: siempre se restaura.
+_keys_ctrl_c_during_disengage() { sleep 3; printf '\002d'; sleep 0.25; printf '\003'; sleep 2; }
+test_god_ctrl_c_during_exit_animation_restores_screen() {
+    _have_god_deps || return 0
+    local urb="$URB_HOME/bin/urb" last
+    URB_GOD_SOCKET="$(_god_socket)"; export URB_GOD_SOCKET
+    ( cd "$HOME" && _god_pty "$HOME/fxc.txt" "$urb --no-color god" _keys_ctrl_c_during_disengage )
+    last="$(grep -ao $'\e\[?1049[hl]' "$HOME/fxc.txt" | tail -n 1)"
+    assert_eq "${last: -1}" "l" "(last alternate-screen sequence)"
+    last="$(grep -ao $'\e\[?25[hl]' "$HOME/fxc.txt" | tail -n 1)"
+    assert_eq "${last: -1}" "h" "(cursor visibility)"
+    # La sesión ya estaba desconectada: sigue viva
+    tmux -L "$URB_GOD_SOCKET" has-session -t god 2>/dev/null || _fail "session lost"
+    _tmux_cleanup "$URB_GOD_SOCKET"
+}

@@ -21,7 +21,7 @@ de terminal: es una aplicación independiente que se abre con `urb`.
 
 | Módulo | Estado | Qué hace |
 |---|---|---|
-| **Dashboard** (`urb`) | ✅ operativo | Logo, host/usuario, SO, kernel, uptime, IP local, gateway, VPN (tun/wg/…), interfaces, CPU/RAM/disco con barras, menú con teclado. Se adapta al tamaño de la terminal y se refresca solo. |
+| **Dashboard 2.0** (`urb`) | ✅ v2 | Centro de control: abre GOD, RED y una Zsh normal sin salir del menú (y vuelves a él con `exit` o `Ctrl+B d`), las herramientas y SESSIONS/HELP. BLUE aparece como *coming soon*. Datos reales (host, IP, VPN, CPU/RAM/disco), diseño adaptable con menú desplazable y `START_MODE` configurable. Ver [Dashboard](#dashboard). |
 | **RECON** (`urb scan`) | ✅ operativo | Nmap con perfiles configurables, puertos abiertos en vivo, progreso **real** de nmap (`--stats-every`), tabla de puertos/servicios/versiones y resultados en `.nmap`, `.xml` y `.gnmap`. Ctrl+C cancela limpio. |
 | **NETWORK** (`urb network`) | ✅ operativo | Resumen, interfaces (MAC/IPv4/IPv6), rutas, gateway, conexiones (`ss`), descubrimiento de hosts (`nmap -sn`, solo redes privadas salvo `--force`), ping y chequeo de conectividad. |
 | **MONITOR** (`urb monitor`) | ✅ operativo | Monitor a pantalla completa: CPU total y por núcleo, RAM, swap, discos y procesos (ordenar por CPU/MEM). `--once` para una instantánea. |
@@ -89,7 +89,8 @@ Borra solo el lanzador y `~/.local/lib/urb-tools`. Tu configuración (`~/.config
 ## Uso
 
 ```bash
-urb                       # Dashboard interactivo (URB Terminal)
+urb                       # Dashboard: centro de control (o GOD/RED según START_MODE)
+urb dashboard             # Siempre el dashboard
 urb help [comando]        # Ayuda general o de un comando (también: urb-help)
 urb help red scans        # Ayuda de una sección
 urb manual                # Manual completo (docs/COMMANDS.md); urb manual examples
@@ -111,15 +112,38 @@ Los modificadores se combinan en cualquier orden, usan el objetivo del laborator
 
 ### Dashboard
 
+`urb` abre el centro de control. Todo está a una tecla, sin submenús:
+
+```
+TERMINAL ENVIRONMENTS   [G] GOD MODE   [R] RED MODE   [B] BLUE MODE (COMING SOON)   [Z] NORMAL SHELL
+CYBERSECURITY TOOLS     [1] RECON  [2] NETWORK  [3] MONITOR  [4] LOGS  [5] CTF
+SYSTEM                  [6] SETTINGS  [S] SESSIONS  [H] HELP  [Q] EXIT
+```
+
 | Tecla | Acción |
 |---|---|
-| `↑ ↓` / `j k` | Moverse |
-| `Enter` / `→` | Abrir módulo |
-| `1`–`6` | Ir directo a un módulo |
-| `r` | Refrescar datos |
-| `q` / `Esc` | Salir o volver |
+| `↑ ↓` / `j k` | Moverse (BLUE se salta: aún no existe) |
+| `Enter` / `→` | Abrir |
+| `G` `R` `Z` | GOD, RED, Zsh normal |
+| `1`–`6` | Herramientas y SETTINGS (los números de siempre) |
+| `S` · `H` | Sesiones · ayuda |
+| `Ctrl+L` | Refrescar datos |
+| `q` / `Esc` | Salir |
 
-Necesita una terminal de al menos 60×20. Con 34 filas o más aparece el logo grande; desde 90 columnas, paneles lado a lado.
+**Ir y volver.** GOD y RED se abren con los mismos lanzadores que `urb god` y `urb red` (sesión tmux propia de cada perfil, reconexión si ya existe, mismo directorio, laboratorio y objetivo). NORMAL SHELL abre **tu Zsh de siempre** (`~/.zshrc`, alias, historial, autocompletado) sin tema ni HUD de URB. Al salir vuelves al menú:
+
+| Desde | Haces | Resultado |
+|---|---|---|
+| GOD / RED | `Ctrl+B d` | Vuelves al menú y la sesión **sigue viva** (marcada `● detached`); su tecla reconecta |
+| GOD / RED | `exit` | La sesión termina y vuelves al menú |
+| Zsh normal | `exit` | Vuelves al menú |
+| Menú | `q` | Vuelves a tu terminal (las sesiones desconectadas siguen vivas: `urb sessions`) |
+
+Si GOD/RED ya está abierto en otra terminal, el dashboard se une como un cliente más (no la desconecta). Dentro de otro tmux, GOD/RED no se anidan y el menú explica por qué.
+
+**Modo de inicio:** `urb config set START_MODE dashboard|god|red` (por defecto `dashboard`). Con `god`/`red`, `urb` entra directamente en ese entorno; `urb dashboard` sigue abriendo el menú.
+
+Mínimo 50×12, alineado arriba a la izquierda. Con poco alto se ocultan primero los paneles de información y el menú se desplaza (`↑ more`/`↓ more`); desde 100 columnas, menú y paneles lado a lado. Detalle en la [§2 del manual](docs/COMMANDS.md#2-dashboard-y-ayuda-general).
 
 ### RECON
 
@@ -225,6 +249,7 @@ Dentro funcionan los atajos estándar de tmux: `Ctrl+B c` abre una ventana nueva
 - Usa un **servidor tmux propio** (socket `urb-god`) con su propia configuración (`godmode/tmux.conf`). Nunca lee ni modifica tu `~/.tmux.conf`, y tus sesiones tmux no se ven afectadas: `urb god --kill` solo cierra la suya.
 - Zsh arranca con un `ZDOTDIR` temporal (`godmode/zsh/`) que **carga tu `~/.zshenv` y tu `~/.zshrc` sin modificarlos** y después aplica el prompt URB. No se toca ni `.zshrc` ni `.bashrc`.
 - Si ya estás dentro de tmux, `urb god` no se anida: te pide que te desconectes primero.
+- También se abre desde el dashboard (`urb` → `G`): al desconectarte (`Ctrl+B d`) o salir (`exit`) vuelves al menú en lugar de a la terminal.
 - Se ejecuta con tu usuario. No da privilegios de root ni ninguna capacidad extra: lo que hagas con `sudo` dentro de God Mode funciona igual que fuera.
 
 **Configuración** (`urb config set CLAVE VALOR`): `ANIMATIONS=0|1`, `GOD_HUD_POSITION=top|bottom` y `GOD_MOUSE=0|1`. Con `GOD_MOUSE=0`, la selección de texto de QTerminal funciona como siempre.
@@ -405,6 +430,7 @@ urb sessions kill red           # terminar (pide confirmación SIEMPRE; --yes pa
 
 - Consultar (`urb sessions`, `info`) **nunca crea sesiones ni arranca servidores**.
 - Cada perfil usa su propio socket (`urb-god`, `urb-red`): `kill red` solo cierra RED, y nada afecta a tus propias sesiones tmux.
+- Desde el dashboard: `urb` → `S` muestra el estado y reconecta (nunca termina sesiones; para eso, `urb sessions kill`).
 
 **Cómo termina una conexión.** Al volver a tu terminal, `urb god` y `urb red` te dicen qué ha pasado:
 - `Detached from …`: te has desconectado (`Ctrl+B d` o has cerrado la ventana). La sesión sigue viva.
@@ -453,12 +479,13 @@ Decisiones técnicas:
 
 - **Bash puro, sin dependencias obligatorias.** El menú y el dashboard usan un motor propio (`tput` y secuencias ANSI). `fzf` y `figlet` son mejoras opcionales.
 - **Sin parpadeo:** cada frame se compone en un búfer y se escribe con un solo `printf` en la pantalla alternativa.
-- **Terminal siempre restaurada:** traps de `EXIT`, `INT`, `TERM` y `HUP` (cursor, eco y pantalla principal).
+- **Terminal siempre restaurada:** un único punto de entrada y salida de la TUI (`ui_screen_enter`/`ui_screen_leave`, idempotentes) y traps de `EXIT`, `INT`, `QUIT`, `TERM` y `HUP` (cursor, eco, `stty` original y pantalla principal); `Ctrl+Z` no suspende la TUI.
+- **Dashboard como lanzador:** GOD, RED, la Zsh normal y la ayuda se ejecutan como procesos hijos en la pantalla principal, reutilizando `urb god`/`urb red`/`urb sessions attach` (sin implementaciones paralelas). El dashboard usa manejadores no-op para `INT`/`QUIT`/`TSTP` mientras el hijo corre: la señal llega al hijo y el dashboard sobrevive.
 - **Aislamiento:** cada módulo lanzado desde el dashboard corre en una subshell, así que un error o un Ctrl+C dentro de un módulo te devuelve al dashboard.
 - **Sin `set -e`:** los errores esperables (herramienta ausente, permisos, entradas inválidas) se comprueban y se informan con códigos de salida (`2` = uso incorrecto, `127` = falta una herramienta, `130` = cancelado).
 - **Seguridad:** sin `eval`, entradas validadas (IP/CIDR/hostname/puertos/nombres), nada que empiece por `-` llega a nmap como objetivo, `sudo` solo para el comando que lo necesita y tras avisar.
 
-Para añadir un módulo, crea `modules/<nombre>.sh` con `<nombre>_main` (CLI) y `<nombre>_menu` (interactivo). Después cárgalo en `bin/urb` y añádelo a `DASH_ITEMS` en `lib/dashboard.sh`.
+Para añadir un módulo, crea `modules/<nombre>.sh` con `<nombre>_main` (CLI) y `<nombre>_menu` (interactivo). Después cárgalo en `bin/urb` y añádelo a `DASH_ITEMS` en `lib/dashboard.sh` (sección `TOOLS`). Un entorno nuevo (p. ej. DEV o BLUE) es una línea `env` en `DASH_ITEMS` (estado `soon` hasta que exista) más su `godmode/profiles/<nombre>.profile`.
 
 ## Tests
 
@@ -472,6 +499,7 @@ shellcheck -x bin/urb lib/*.sh modules/*.sh godmode/*.sh godmode/hud/*.sh godmod
 
 - **Fase 2 — Reconocimiento y análisis:** importar resultados XML de nmap al informe del laboratorio, enumeración por servicio (HTTP, SMB, FTP), comparar escaneos, más patrones de logs (fail2ban, servidores web) y exportar a CSV/Markdown.
 - **Fase 3 — Experiencia visual:** temas de color, informes HTML/PDF, más animaciones (desactivables), gráficas históricas de CPU/RAM y soporte de ratón.
+- **BLUE MODE:** entorno Blue Team (ya reservado en el dashboard como *coming soon*; sin módulos ni HUD hasta que se desarrolle).
 
 ## Licencia
 

@@ -98,6 +98,21 @@ urb sessions                  # red none · god detached (God Mode intacto)
 urb god                       # reconectar a God Mode → exit → "God Mode off. Session ended…"
 ```
 
+Lo mismo sin salir del dashboard:
+
+```text
+urb                           # dashboard
+  G                           # GOD MODE (crea o reconecta)  → trabaja… → Ctrl+B d
+                              # de vuelta en el menú: "God Mode detached: your programs keep running"
+                              # y GOD MODE marcado "● detached"
+  R                           # RED MODE → Ctrl+B d → de vuelta en el menú (RED también "● detached")
+  S                           # SESSIONS: God Mode / URB Red con su estado → Enter reconecta
+  G                           # vuelve a la MISMA sesión de GOD (sus programas siguen ahí)
+                              # → exit → "God Mode session ended (exit)"
+  q                           # salir del dashboard: RED sigue viva en segundo plano
+urb sessions                  # red detached · god none
+```
+
 Dentro de URB Red:
 
 ```bash
@@ -160,13 +175,37 @@ urb config init                       # crea ~/.config/urb-tools/urb.conf (no so
 urb config set ANIMATIONS 0           # sin animaciones
 urb config set GOD_HUD_POSITION bottom
 urb config set SERVE_PORT 9000        # 'urb serve' usará 9000 si no indicas --port
+urb config set START_MODE red        # 'urb' entra directamente en URB Red
+urb config set START_MODE dashboard  # volver al menú como inicio (valor por defecto)
 urb config edit                       # abrir el fichero en tu editor
 urb doctor                            # dependencias y entorno
 ```
 
 ---
 
-## 8. Ayuda y manual
+## 8. Dashboard: terminal normal, GOD y RED desde el menú
+
+```text
+cd ~/urb-labs/htb-box           # el directorio desde el que abres urb es el de trabajo
+urb                             # dashboard
+  Z                             # NORMAL SHELL: tu Zsh con tu ~/.zshrc, sin HUD ni prompt URB
+    git status; ls              # … todo funciona como en tu terminal
+    exit                        # → de vuelta en el dashboard ("Normal shell closed")
+  R                             # URB Red con el laboratorio de esta carpeta y su objetivo
+    urb red recon quick         # …
+    Ctrl+B d                    # → dashboard; el escaneo sigue corriendo dentro de RED
+  B                             # "BLUE MODE: coming soon, not available yet" (no abre nada)
+  H                             # ayuda (less: q para volver)
+  q                             # salir a QTerminal
+```
+
+`exit` termina lo que hayas abierto (en GOD/RED, la sesión entera si era su última shell); `Ctrl+B d` solo se desconecta y lo deja todo en marcha. En ambos casos vuelves al dashboard.
+
+Si `urb` se abre dentro de otra sesión tmux, `G`/`R` muestran *cannot start inside another tmux session*: desconéctate de ese tmux y vuelve a abrir `urb`.
+
+---
+
+## 9. Ayuda y manual
 
 ```bash
 urb help                    # resumen de todos los comandos

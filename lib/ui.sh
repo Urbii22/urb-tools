@@ -186,9 +186,16 @@ ui_term_size() {
     UI_COLS=$c
 }
 
+# Ciclo de vida de la TUI (un único punto de entrada y salida):
+#   ui_screen_enter  pantalla alternativa + cursor oculto + sin eco
+#   ui_screen_leave  deshace exactamente eso y restaura el stty original
+# Ambas son idempotentes (llamarlas dos veces no hace nada) y seguras desde
+# traps. El estado stty se guarda UNA vez por proceso (el de la shell que
+# lanzó urb) y es el que se restaura siempre, aunque un programa hijo lo
+# haya dejado alterado. URB no activa modos de ratón ni toca otros modos.
 ui_screen_enter() {
     (( _UI_ACTIVE )) && return 0
-    _UI_STTY="$(stty -g </dev/tty 2>/dev/null || true)"
+    [[ -n "$_UI_STTY" ]] || _UI_STTY="$(stty -g </dev/tty 2>/dev/null || true)"
     stty -echo </dev/tty 2>/dev/null || true
     printf '\e[?1049h\e[?25l\e[2J\e[H'
     _UI_ACTIVE=1
@@ -197,13 +204,31 @@ ui_screen_enter() {
 
 ui_screen_leave() {
     (( _UI_ACTIVE )) || return 0
+    _UI_ACTIVE=0
     printf '\e[0m\e[?25h\e[?1049l'
+    ui_tty_restore
+}
+
+# Restaura el stty guardado al entrar (o uno razonable si no se pudo guardar)
+ui_tty_restore() {
     if [[ -n "$_UI_STTY" ]]; then
         stty "$_UI_STTY" </dev/tty 2>/dev/null || stty sane </dev/tty 2>/dev/null || true
     else
         stty sane </dev/tty 2>/dev/null || true
     fi
-    _UI_ACTIVE=0
+}
+
+# Tras un programa hijo que usa tmux (GOD/RED): tmux puede activar el ratón
+# (GOD_MOUSE=1 o 'set mouse on') y, si su cliente muere sin limpiar, esos
+# modos quedarían activos. Se desactivan solo los modos de informe de ratón
+# (1000/1002/1003/1005/1006/1015); nada más (p. ej. no se toca el 1007).
+ui_mouse_reset() { printf '\e[?1000l\e[?1002l\e[?1003l\e[?1005l\e[?1006l\e[?1015l'; }
+
+# Descarta teclas pendientes (p. ej. pulsadas mientras volvía un hijo)
+ui_drain_input() {
+    local _k
+    while IFS= read -rsn1 -t 0.01 _k </dev/tty 2>/dev/null; do :; done
+    return 0
 }
 
 # Para ejecutar una tarea "normal" (con eco y cursor) dentro de la pantalla TUI
@@ -218,14 +243,24 @@ ui_resume() {
     UI_NEED_CLEAR=1
 }
 
-# Traps: la terminal SIEMPRE se restaura al salir (normal, Ctrl+C, kill)
+# Traps: la terminal SIEMPRE se restaura al salir (normal, Ctrl+C, Ctrl+\, kill)
+#  - QUIT (Ctrl+\) por defecto mataría el proceso SIN pasar por EXIT, dejando la
+#    pantalla alternativa y el eco desactivado en la shell del usuario.
+#  - TSTP (Ctrl+Z) por defecto detendría la TUI y devolvería la shell en la
+#    pantalla alternativa: se ignora mientras la TUI está en primer plano.
+#    Es un manejador (no un "ignorar" heredable): los procesos hijos reciben
+#    las señales con su acción normal.
 ui_install_traps() {
     trap 'ui_screen_leave' EXIT
     trap 'exit 130' INT
+    trap 'exit 131' QUIT
     trap 'exit 143' TERM
     trap 'exit 129' HUP
+    trap ':' TSTP
     trap '_UI_RESIZED=1' WINCH
 }
+
+ui_remove_traps() { trap - EXIT INT QUIT TERM HUP TSTP WINCH; }
 
 # =============================================================================
 #  Búfer de dibujo

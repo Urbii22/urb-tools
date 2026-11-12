@@ -83,9 +83,10 @@ Claves principales (valores por defecto entre paréntesis):
 | Clave | Uso |
 |---|---|
 | `ANIMATIONS` (`1`) | Animaciones del dashboard, God Mode y URB Red |
-| `REFRESH_INTERVAL` (`2`) | Segundos entre refrescos del dashboard |
+| `REFRESH_INTERVAL` (`2`) | Segundos entre refrescos del dashboard (también `Ctrl+L`) |
 | `LOGO_STYLE` (`block`), `LOGO_FONT` (`slant`) | Logo incluido o de `figlet` |
 | `MENU_ENGINE` (`builtin`) | Menús propios o `fzf` |
+| `START_MODE` (`dashboard`) | Qué abre `urb` sin comando: `dashboard`, `god` o `red` (§2) |
 | `SCAN_DIR` (`~/.local/share/urb-tools/scans`) | Resultados de `urb scan` fuera de un laboratorio |
 | `LABS_DIR` (`~/urb-labs`) | Carpeta de los laboratorios |
 | `SCAN_DEFAULT_PROFILE` (`default`), `SCAN_PROFILE_<nombre>` | Perfiles de `urb scan` |
@@ -108,11 +109,48 @@ Comprueba Bash, sistema, terminal, UTF-8, dependencias (obligatorias y opcionale
 ## 2. Dashboard y ayuda general
 
 ### `urb`
-Abre URB Terminal: un dashboard con datos reales (host, SO, IP, gateway, VPN, interfaces, CPU, RAM y disco) y un menú de módulos.
+Abre URB Terminal, el **centro de control**: un dashboard con datos reales (host, SO, IP, gateway, VPN, interfaces, CPU, RAM y disco) desde el que se abren directamente, sin submenús, los entornos de terminal, las herramientas y las opciones del sistema. Qué abre `urb` sin comando lo decide `START_MODE` (por defecto, el dashboard).
 
-- **Teclas:** `↑↓`/`j k` mover · `Enter` abrir · `1`–`6` acceso directo · `r` refrescar · `q`/`Esc` salir.
-- **Requisitos:** una terminal interactiva de al menos 60×20. Sin terminal, termina con el código `1` y sugiere comandos no interactivos.
-- **Alias:** `urb dashboard`, `urb tui`.
+| Sección | Tecla | Opción | Qué hace |
+|---|---|---|---|
+| TERMINAL ENVIRONMENTS | `G` | GOD MODE | Lo mismo que `urb god`: reconecta la sesión si existe o crea una nueva en el directorio actual |
+| | `R` | RED MODE | Lo mismo que `urb red`: laboratorio, objetivo y HUD rojo persistentes |
+| | `B` | BLUE MODE | `COMING SOON`: aparece atenuado y no se puede ejecutar |
+| | `Z` | NORMAL SHELL | Tu Zsh de siempre (`zsh -i`, tu `~/.zshrc`, alias, historial), sin tema ni HUD de URB |
+| CYBERSECURITY TOOLS | `1`–`5` | RECON, NETWORK, MONITOR, LOGS, CTF | Los módulos de siempre, con los mismos números |
+| SYSTEM | `6` | SETTINGS | Configuración |
+| | `S` | SESSIONS | Estado de GOD/RED y reconexión (como `urb sessions attach`; nunca termina sesiones) |
+| | `H` | HELP | `urb help` (con `less`) |
+| | `Q` / `Esc` | EXIT | Cerrar el dashboard y volver a la terminal |
+
+- **Otras teclas:** `↑↓`/`j k` mover (BLUE se salta) · `Enter`/`→` abrir · `Ctrl+L` refrescar datos. Las letras valen en mayúscula o minúscula.
+- **Volver al dashboard:** al salir de lo que abriste vuelves al menú, no se cierra la terminal.
+
+  | Desde | Acción | Resultado |
+  |---|---|---|
+  | GOD / RED | `Ctrl+B d` (detach) | Vuelves al menú; la sesión y sus programas **siguen en marcha** (el menú marca `● detached`). Su tecla reconecta la misma sesión. |
+  | GOD / RED | `exit` / `Ctrl+D` en la última shell | La sesión termina; vuelves al menú. La próxima vez se crea una nueva. |
+  | GOD / RED | error al arrancar (falta tmux, servidor caído…) | Se muestra el error, *Press any key to return to the URB dashboard* y vuelves al menú. |
+  | NORMAL SHELL | `exit` | Vuelves al menú. |
+
+- **Sesiones conectadas en otra terminal:** si GOD/RED ya está abierto en otra ventana, el dashboard se une como un cliente más (igual que `urb god`): no la desconecta ni se la apropia. Al salir, el menú indica `attached` (sigue conectada allí).
+- **Dentro de tmux:** si `urb` se ejecuta dentro de otra sesión tmux, GOD/RED no se abren (no se anidan) y el menú explica por qué; la Zsh normal y las herramientas siguen disponibles.
+- **Terminal:** antes de abrir GOD, RED, la Zsh o la ayuda, el dashboard sale por completo de su pantalla (pantalla principal, cursor visible, `stty` original). Al volver, tras GOD/RED desactiva los modos de informe de ratón que tmux pudiera haber dejado, restaura el `stty` y descarta teclas pendientes. `Ctrl+C`, `Ctrl+\` y `Ctrl+Z` en un programa abierto llegan a ese programa; el dashboard sigue vivo. En el propio menú, `Ctrl+C` sale (código `130`) restaurando la terminal y `Ctrl+Z` se ignora.
+- **Tamaño:** mínimo 50×12. Alineado arriba a la izquierda; con poco alto se ocultan primero los paneles de información y el menú se desplaza (indicadores `↑ more` / `↓ more`) en lugar de recortar opciones. Desde 100 columnas, menú y paneles lado a lado.
+- **Requisitos:** una terminal interactiva. Sin terminal, termina con el código `1` y sugiere comandos no interactivos. GOD/RED necesitan `tmux` ≥ 3.0 y `zsh`; la Zsh normal, `zsh`.
+- **Alias:** `urb dashboard` (abre siempre el menú, sea cual sea `START_MODE`), `urb tui`.
+
+### Modo de inicio (`START_MODE`)
+
+```bash
+urb config set START_MODE dashboard   # por defecto: el menú principal
+urb config set START_MODE god         # 'urb' entra directamente en GOD (como 'urb god')
+urb config set START_MODE red         # 'urb' entra directamente en RED (como 'urb red')
+```
+
+- Con `god`/`red`, un detach o un `exit` te devuelven a tu terminal (igual que `urb god`/`urb red`); `urb dashboard` sigue abriendo el menú.
+- Si el entorno no puede abrirse (falta tmux, estás dentro de otro tmux…), se informa y se abre el dashboard con el motivo en la línea de estado.
+- `urb config set` solo acepta `dashboard`, `god` o `red` (código `2` en otro caso; `blue` aún no está disponible). Si el fichero contiene otro valor (editado a mano), `urb` lo indica y abre el dashboard. El valor es un dato: nunca se ejecuta.
 
 ### `urb help` · `urb-help`
 - **Sintaxis:** `urb help [tema [sección]]`. Es equivalente a `urb-help [tema [sección]]`: `urb-help` es solo un acceso directo que ejecuta `urb help` (misma ayuda, sin duplicados).
@@ -501,6 +539,9 @@ Servidor HTTP con el `http.server` de la biblioteca estándar de Python.
 | God Mode: `You are inside another tmux session` | God Mode y URB Red no se anidan | Desconéctate (`Ctrl+B d`) y vuelve a ejecutarlo |
 | `[exited]` al salir de God Mode o URB Red | Terminó la última shell (exit/Ctrl+D) o se cerró la sesión | Para conservar los programas, desconéctate con `Ctrl+B d` |
 | `tmux server ended unexpectedly` | El servidor tmux murió estando conectado | Es un error real: `urb sessions` y vuelve a abrir el perfil |
+| Dashboard: `… cannot start inside another tmux session` | Abriste `urb` dentro de otro tmux | Desconéctate de ese tmux (`Ctrl+B d`) y abre `urb` de nuevo; la Zsh normal y las herramientas funcionan igualmente |
+| `Invalid START_MODE …` al abrir `urb` | Valor no admitido en tu configuración | `urb config set START_MODE dashboard` (se abre el dashboard mientras tanto) |
+| La rueda del ratón recorre el historial en lugar de desplazar la salida | La terminal se quedó en la **pantalla alternativa** (en ella, QTerminal y otros convierten la rueda en flechas ↑/↓). Sin confirmar en QTerminal; en pty se reprodujo con Ctrl+C durante la animación de salida de GOD/RED (corregido) | `tput rmcup` (o `printf '\e[?1049l'`) devuelve la pantalla principal; `reset` si además el cursor no se ve |
 | No puedo leer los logs | Tu usuario no está en `adm`/`systemd-journal` | `--sudo` o `sudo usermod -aG adm $USER` (y vuelve a iniciar sesión) |
 
 Diagnóstico general: `urb doctor`, `urb god --check`, `urb sessions` y `urb red status`.

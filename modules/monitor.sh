@@ -111,7 +111,7 @@ monitor_live() {
         esac
     done
     printf '\e[0m\e[2J\e[H\e[?25h'
-    if (( own )); then ui_screen_leave; trap - EXIT INT TERM HUP WINCH; fi
+    if (( own )); then ui_screen_leave; ui_remove_traps; fi
     return 0
 }
 

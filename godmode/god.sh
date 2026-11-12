@@ -215,6 +215,17 @@ _god_engage_info() {
     fi
 }
 
+# Animación de salida protegida: se dibuja en la pantalla alternativa, así que
+# un Ctrl+C (o un cierre) durante ella debe devolver SIEMPRE la pantalla
+# principal y el cursor. Sin este trap, la shell que lanzó urb quedaría en la
+# pantalla alternativa (donde algunos terminales convierten la rueda del ratón
+# en flechas ↑/↓). La sesión tmux no se ve afectada: ya está desconectada.
+_god_fx_out() {
+    trap 'printf "\e[0m\e[?25h\e[?1049l"; exit 130' INT TERM HUP
+    god_fx_disengage "$1"
+    trap - INT TERM HUP
+}
+
 god_start() {
     local use_anim=1 attach_only="${2:-0}"
     [[ "${1:-}" == "--no-anim" ]] && use_anim=0
@@ -326,7 +337,7 @@ god_start() {
             msg_dim "    The session is still running: '${P_CMD}' to retry, '${P_CMD} --kill' to end it."
             return 1
         fi
-        (( use_anim )) && god_fx_disengage "${P_TITLE} ${G_SEP} DETACHED"
+        (( use_anim )) && _god_fx_out "${P_TITLE} ${G_SEP} DETACHED"
         msg_info "Detached from ${P_NAME}: your programs keep running."
         msg_dim "    '${P_CMD}' to return · '${P_CMD} --kill' to end the session"
         return 0
@@ -336,7 +347,7 @@ god_start() {
         msg_dim "    This is not a normal detach; programs running in it were terminated."
         return 1
     fi
-    (( use_anim )) && god_fx_disengage "${P_TITLE} OFF"
+    (( use_anim )) && _god_fx_out "${P_TITLE} OFF"
     printf '%s%s %s off. Back to your terminal.%s\n' "$T_DIM" "$G_DIAM" "$P_NAME" "$C_RESET"
     msg_dim "    Session ended: its last shell exited (exit / Ctrl+D) or it was closed. Ctrl+B d detaches instead."
     return 0

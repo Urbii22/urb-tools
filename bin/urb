@@ -62,7 +62,8 @@ ${C_BOLD}USAGE${C_RESET}
   urb [global options] [command] [arguments]
 
 ${C_BOLD}COMMANDS${C_RESET}
-  ${T_KEY}(none)${C_RESET}               Open the interactive URB Terminal dashboard
+  ${T_KEY}(none)${C_RESET}               Open the dashboard (or GOD/RED if START_MODE says so)
+  ${T_KEY}dashboard${C_RESET}            Always open the dashboard (control center)
   ${T_KEY}scan${C_RESET} <target>        Nmap scan with profiles, live progress and saved results
   ${T_KEY}network${C_RESET} [action]     Interfaces, routes, gateway, connections, discovery, checks
   ${T_KEY}monitor${C_RESET} [--once]     Live CPU / RAM / disk / process monitor
@@ -77,6 +78,16 @@ ${C_BOLD}COMMANDS${C_RESET}
   ${T_KEY}manual${C_RESET} [examples]    Open the full manual (docs/COMMANDS.md, docs/EXAMPLES.md)
   ${T_KEY}help${C_RESET} [command] [section]  Help (e.g. urb help red scans) — also: urb-help
   ${T_KEY}version${C_RESET}              Show version
+
+${C_BOLD}DASHBOARD${C_RESET} (urb)
+  TERMINAL ENVIRONMENTS  ${T_KEY}G${C_RESET} GOD MODE  ${T_KEY}R${C_RESET} RED MODE  ${T_KEY}B${C_RESET} BLUE (coming soon)  ${T_KEY}Z${C_RESET} normal zsh
+  CYBERSECURITY TOOLS    ${T_KEY}1${C_RESET} RECON  ${T_KEY}2${C_RESET} NETWORK  ${T_KEY}3${C_RESET} MONITOR  ${T_KEY}4${C_RESET} LOGS  ${T_KEY}5${C_RESET} CTF
+  SYSTEM                 ${T_KEY}6${C_RESET} SETTINGS  ${T_KEY}S${C_RESET} SESSIONS  ${T_KEY}H${C_RESET} HELP  ${T_KEY}Q${C_RESET}/Esc EXIT
+  ${G_UP}${G_DOWN}/jk move · Enter open · Ctrl+L refresh
+  Inside GOD/RED:  ${T_KEY}Ctrl+B d${C_RESET} detach (keeps running) → back to the dashboard
+                   ${T_KEY}exit${C_RESET} ends the session → back to the dashboard
+  Normal zsh:      ${T_KEY}exit${C_RESET} → back to the dashboard
+  Start mode:      urb config set START_MODE dashboard|god|red
 
 ${C_BOLD}GLOBAL OPTIONS${C_RESET}
   --no-color      Disable colors (also honours NO_COLOR)
@@ -143,6 +154,33 @@ urb_god() {
     URB_COLOR="$color_mode" exec bash "$god" "$@"
 }
 
+# `urb` sin comando: lo que indique START_MODE (dashboard por defecto).
+#   dashboard → menú principal · god → como `urb god` · red → como `urb red`
+# Si el modo no es válido o el entorno no puede abrirse, se informa y se abre
+# el dashboard (recuperación segura). `urb dashboard` abre siempre el menú.
+urb_start() {
+    local mode rc
+    mode="$(cfg START_MODE dashboard)"
+    case "$mode" in
+        ""|dashboard) dashboard_run; return $? ;;
+        god|red)
+            [[ -t 0 && -t 1 ]] || { dashboard_run; return $?; }
+            # Proceso hijo (no exec) para poder recuperar el dashboard si falla
+            if [[ "$mode" == "god" ]]; then ( urb_god ); rc=$?; else ( red_main ); rc=$?; fi
+            (( rc == 0 || rc == 130 )) && return "$rc"
+            dashboard_run "${G_BAD} START_MODE=${mode}: ${mode^^} MODE could not open (exit ${rc}). Dashboard opened instead. Check: urb ${mode} --check" "$T_BAD"
+            return $? ;;
+        blue)
+            msg_warn "START_MODE=blue: BLUE MODE is not available yet (coming soon). Opening the dashboard."
+            dashboard_run "${G_DIAM} START_MODE=blue is not available yet. Fix: urb config set START_MODE dashboard"
+            return $? ;;
+        *)
+            msg_err "Invalid START_MODE '${mode}' (valid: ${URB_START_MODES[*]}). Opening the dashboard."
+            dashboard_run "${G_BAD} Invalid START_MODE '${mode}'. Fix: urb config set START_MODE dashboard" "$T_BAD"
+            return $? ;;
+    esac
+}
+
 main() {
     local color_mode="${URB_COLOR:-auto}"
     # Opciones globales (antes del comando)
@@ -169,7 +207,8 @@ main() {
     local cmd="${1:-}"
     (( $# > 0 )) && shift
     case "$cmd" in
-        ""|dashboard|ui|tui) dashboard_run ;;
+        "")                  urb_start ;;
+        dashboard|ui|tui)   dashboard_run ;;
         scan|recon)          scan_main "$@" ;;
         network|net)         network_main "$@" ;;
         monitor|mon)         monitor_main "$@" ;;
