@@ -81,7 +81,8 @@ urb_doctor() {
     local -a opt=("nmap:nmap:RECON scans, host discovery" "fzf:fzf:alternative menu engine" "figlet:figlet:figlet logo style" \
                   "curl:curl:HTTPS connectivity check" "ping:iputils-ping:ping / gateway checks" "journalctl:systemd:log analysis without auth.log" \
                   "less:less:log paging" "sudo:sudo:privileged nmap profiles" \
-                  "tmux:tmux:God Mode (urb god)" "zsh:zsh:God Mode (urb god)")
+                  "tmux:tmux:God Mode (urb god)" "zsh:zsh:God Mode (urb god)" \
+                  "python3:python3:URB Red service inventory (urb red services)")
     for t in "${req[@]}"; do
         pkg="${t#*:}"; t="${t%%:*}"
         if has_cmd "$t"; then ok=$(( ok + 1 )); printf '  %s%s%s %-12s %srequired%s\n' "$T_OK" "$G_OK" "$C_RESET" "$t" "$T_DIM" "$C_RESET"

@@ -151,7 +151,20 @@ red_findings() {
             (( rc == 0 )) || { msg_err "$FND_ERR"; return "$rc"; }
             msg_ok "Note added to ${FND_ID}." ;;
         evidence|ev)
-            [[ $# -eq 2 ]] || { msg_err "Usage: urb red findings evidence F-001 <file inside the lab>"; return 2; }
+            if [[ $# -eq 3 && "$2" == "--scan" ]]; then
+                # Referencia corta a un escaneo del laboratorio: latest | S-001
+                _fnd_require_id "$1" || return $?
+                scn_resolve "$LAB_ROOT" "$3"; rc=$?
+                (( rc == 0 )) || { msg_err "$SCN_ERR"; return "$rc"; }
+                local nmapf; nmapf="$(scn_dir "$LAB_ROOT")/${SCN_BASE}.nmap"
+                [[ -f "$nmapf" ]] || { msg_err "${SCN_ID} has no .nmap file to link ($(scn_status "$(scn_dir "$LAB_ROOT")" "$SCN_BASE") scan)."; return 1; }
+                fnd_add_evidence "$LAB_ROOT" "$FND_ID" "$nmapf"; rc=$?
+                if (( rc == 3 )); then msg_info "${SCN_ID}: ${FND_ERR}"; return 0; fi
+                (( rc == 0 )) || { msg_err "$FND_ERR"; return "$rc"; }
+                msg_ok "Evidence linked to ${FND_ID}: ${SCN_ID} → ${FND_EVIDENCE_REL}"
+                return 0
+            fi
+            [[ $# -eq 2 ]] || { msg_err "Usage: urb red findings evidence F-001 <file inside the lab> | --scan <latest|S-001>"; return 2; }
             _fnd_require_id "$1" || return $?
             fnd_add_evidence "$LAB_ROOT" "$FND_ID" "$2"; rc=$?
             if (( rc == 3 )); then msg_info "$FND_ERR"; return 0; fi

@@ -50,11 +50,23 @@ ${C_BOLD}FINDINGS${C_RESET} (one file per finding in <lab>/findings/)
   urb red findings status F-001 <state>         Change state (recorded in the history)
   urb red findings note F-001 "<text>"          Timestamped note on that finding
   urb red findings evidence F-001 <file>        Link a file inside the lab (reference only)
+  urb red findings evidence F-001 --scan latest Link the .nmap of a scan (latest | S-001)
 
   States: pending · investigating · suspected (hypothesis, not verified)
           confirmed (verified with evidence; not necessarily a vulnerability)
           discarded (hypothesis tested and ruled out)
           checked (check done, nothing found)
+
+${C_BOLD}SCANS${C_RESET} (nmap results already saved in <lab>/scans/; nothing is re-run)
+  urb red scans [list]                          Scans with stable IDs (S-001...)
+  urb red scans show [latest|S-001]             Details, files and ports
+  latest = most recent COMPLETE scan (interrupted or failed scans are not used)
+
+${C_BOLD}SERVICES${C_RESET} (inventory built from the nmap XML files; no network traffic)
+  urb red services [list] [--all]               Open ports by default; --all for every state
+  urb red services show <port|host:port[/proto]>
+  urb red services refresh                      Rebuild the inventory from the XML files
+  An open port is inventory, not a finding.
 
 ${C_BOLD}NOTES${C_RESET} (the lab's notes/notes.md)
   urb red notes                                 Show the general notes
@@ -202,9 +214,12 @@ red_status() {
         else
             _red_kv "Target" "${T_BAD}${LAB_ERR}${C_RESET}"
         fi
-        n="$(find "${LAB_ROOT}/scans" -maxdepth 1 -name '*.nmap' -type f 2>/dev/null | wc -l)"
-        latest="$(find "${LAB_ROOT}/scans" -maxdepth 1 -name '*.nmap' -type f -printf '%T@ %f\n' 2>/dev/null | sort -rn | head -n 1 | cut -d' ' -f2-)"
-        _red_kv "Scans" "${n}${latest:+  ${T_DIM}(latest: ${latest})${C_RESET}}"
+        n=0 latest=""
+        if declare -F scn_sync >/dev/null && scn_sync "$LAB_ROOT"; then
+            _scn_read "$LAB_ROOT"; n=${#SCN_IDS[@]}
+            scn_resolve "$LAB_ROOT" latest 2>/dev/null && latest="latest complete: ${SCN_ID}, $(printf '%(%Y-%m-%d %H:%M)T' "$SCN_EPOCH")"
+        fi
+        _red_kv "Scans" "${n}${latest:+  ${T_DIM}(${latest})${C_RESET}}"
         if declare -F fnd_counts >/dev/null; then
             fnd_counts "$LAB_ROOT"
             _red_kv "Findings" "$(red_findings_summary)"
@@ -264,6 +279,17 @@ red_recon() {
     mkdir -p -- "${LAB_ROOT}/scans" || { msg_err "Cannot create ${LAB_ROOT}/scans"; return 1; }
     scan_main "$target" --profile default -o "${LAB_ROOT}/scans"; rc=$?
     diag_scan "$rc" "${SCAN_LAST_BASE:-}" "$target"
+    # Registrar el escaneo en el índice del laboratorio y mostrar su ID corto
+    if [[ -n "${SCAN_LAST_BASE:-}" ]] && declare -F scn_sync >/dev/null && scn_sync "$LAB_ROOT"; then
+        local i b="${SCAN_LAST_BASE##*/}"
+        _scn_read "$LAB_ROOT"
+        for i in "${!SCN_BASES[@]}"; do
+            if [[ "${SCN_BASES[i]}" == "$b" ]]; then
+                msg_info "Scan ID: ${SCN_IDS[i]}  (urb red scans show ${SCN_IDS[i]} · urb red services)"
+                break
+            fi
+        done
+    fi
     if (( rc == 0 )) && [[ -n "${SCAN_LAST_BASE:-}" ]]; then
         msg_dim "  Files: ${SCAN_LAST_BASE}.{nmap,xml,gnmap}"
     fi
@@ -290,6 +316,8 @@ red_main() {
         status)             shift; [[ $# -eq 0 ]] || { msg_err "Usage: urb red status"; return 2; }; red_status ;;
         recon)              shift; red_recon "$@" ;;
         findings|finding)   shift; red_findings "$@" ;;
+        scans|scan)         shift; red_scans "$@" ;;
+        services|service)   shift; red_services "$@" ;;
         notes|note)         shift; red_notes "$@" ;;
         -h|--help|help)     red_help ;;
         *) msg_err "Unknown red command: $1"; msg_dim "    See: urb red --help"; return 2 ;;
@@ -303,6 +331,8 @@ if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
     source "${URB_HOME}/lib/utils.sh" && urb_standalone_init || exit 1
     # shellcheck source=findings.sh
     source "${URB_HOME}/modules/findings.sh" || exit 1
+    # shellcheck source=inventory.sh
+    source "${URB_HOME}/modules/inventory.sh" || exit 1
     red_main "$@"
     exit $?
 fi

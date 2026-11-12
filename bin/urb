@@ -22,9 +22,9 @@ URB_HOME="$(cd -P -- "$(dirname -- "$_urb_src")/.." && pwd -P)" || {
 export URB_HOME
 unset _urb_src
 
-for _f in lib/utils.sh lib/ui.sh lib/system.sh lib/lab.sh lib/diagnose.sh lib/findings.sh lib/dashboard.sh \
+for _f in lib/utils.sh lib/ui.sh lib/system.sh lib/lab.sh lib/diagnose.sh lib/findings.sh lib/scans.sh lib/dashboard.sh \
           modules/scan.sh modules/network.sh modules/monitor.sh \
-          modules/logs.sh modules/ctf.sh modules/settings.sh modules/red.sh modules/findings.sh \
+          modules/logs.sh modules/ctf.sh modules/settings.sh modules/red.sh modules/findings.sh modules/inventory.sh \
           godmode/session.sh modules/sessions.sh; do
     # shellcheck source=/dev/null
     source "${URB_HOME}/${_f}" || { echo "urb: failed to load ${_f}" >&2; exit 1; }

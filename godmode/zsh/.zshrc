@@ -124,6 +124,103 @@ if [[ "$_urb_tag" == RED ]]; then
     }
 fi
 
+# --- 4. Autocompletado de 'urb' (GOD y RED) -------------------------------------------------
+# Ligero: listas fijas y lectura directa de los índices del laboratorio
+# (findings/F-*.finding, scans/.index, scans/.services). Nunca ejecuta nmap,
+# no analiza XML ni reconstruye inventarios, y no lanza procesos al pulsar Tab.
+if (( $+functions[compdef] )); then
+    # Raíz del laboratorio: el del directorio actual o el seleccionado → $REPLY
+    _urb_lab_root() {
+        local d="$PWD" st r
+        while :; do
+            [[ -f "$d/.urb-lab" ]] && { REPLY="$d"; return 0; }
+            [[ "$d" == / || -z "$d" ]] && break
+            d="${d:h}"
+        done
+        st="${XDG_DATA_HOME:-$HOME/.local/share}/urb-tools/state/active-lab"
+        [[ -r "$st" ]] || return 1
+        IFS= read -r r <"$st"
+        [[ "$r" == /* && -f "$r/.urb-lab" ]] || return 1
+        REPLY="$r"
+    }
+    _urb_complete() {
+        local -a ids lines
+        local REPLY line
+        if (( CURRENT == 2 )); then
+            compadd -- scan network monitor logs ctf config doctor god red sessions help version
+            return
+        fi
+        case "${words[2]}" in
+            red)
+                if (( CURRENT == 3 )); then
+                    compadd -- lab target status recon findings notes scans services --no-anim --kill --session --help
+                    return
+                fi
+                case "${words[3]}" in
+                    lab)
+                        if (( CURRENT == 4 )); then compadd -- new use list path
+                        elif [[ "${words[4]}" == (use|path) ]]; then compadd -- ${HOME}/urb-labs/*(N/:t)
+                        fi ;;
+                    target)  (( CURRENT == 4 )) && compadd -- set show ;;
+                    recon)   (( CURRENT == 4 )) && compadd -- initial ;;
+                    notes)   (( CURRENT == 4 )) && compadd -- add edit ;;
+                    findings)
+                        if (( CURRENT == 4 )); then
+                            compadd -- list add show status note evidence
+                        elif (( CURRENT == 5 )) && [[ "${words[4]}" == (show|status|note|evidence) ]]; then
+                            _urb_lab_root && compadd -- "$REPLY"/findings/F-*.finding(N:t:r)
+                        elif [[ "${words[4]}" == status ]] && (( CURRENT == 6 )); then
+                            compadd -- pending investigating suspected confirmed discarded checked
+                        elif [[ "${words[4]}" == evidence && "${words[CURRENT-1]}" == --scan ]]; then
+                            ids=(latest)
+                            if _urb_lab_root && [[ -r "$REPLY/scans/.index" ]]; then
+                                lines=("${(@f)$(<"$REPLY/scans/.index")}")
+                                for line in "${lines[@]}"; do [[ "$line" == S-* ]] && ids+=("${line%%|*}"); done
+                            fi
+                            compadd -- "${ids[@]}"
+                        elif [[ "${words[4]}" == evidence ]] && (( CURRENT == 6 )); then
+                            compadd -- --scan; _files
+                        fi ;;
+                    scans)
+                        if (( CURRENT == 4 )); then compadd -- list show
+                        elif [[ "${words[4]}" == show ]] && (( CURRENT == 5 )); then
+                            ids=(latest)
+                            if _urb_lab_root && [[ -r "$REPLY/scans/.index" ]]; then
+                                lines=("${(@f)$(<"$REPLY/scans/.index")}")
+                                for line in "${lines[@]}"; do [[ "$line" == S-* ]] && ids+=("${line%%|*}"); done
+                            fi
+                            compadd -- "${ids[@]}"
+                        fi ;;
+                    services)
+                        if (( CURRENT == 4 )); then compadd -- list show refresh --all
+                        elif [[ "${words[4]}" == show ]] && (( CURRENT == 5 )); then
+                            # Puertos de la caché ya construida (no se reconstruye aquí)
+                            if _urb_lab_root && [[ -r "$REPLY/scans/.services" ]]; then
+                                lines=("${(@f)$(<"$REPLY/scans/.services")}")
+                                for line in "${lines[@]}"; do
+                                    [[ "$line" == svc$'\t'* ]] && ids+=("${${(ps:\t:)line}[4]}")
+                                done
+                                compadd -- "${(u)ids[@]}"
+                            fi
+                        fi ;;
+                esac ;;
+            sessions)
+                if (( CURRENT == 3 )); then compadd -- list info attach kill
+                elif (( CURRENT == 4 )); then compadd -- god red
+                fi ;;
+            god)     compadd -- --no-anim --status --kill --check --help ;;
+            network) (( CURRENT == 3 )) && compadd -- summary interfaces routes gateway connections discover ping check ;;
+            monitor) compadd -- --once --interval procs ;;
+            logs)    (( CURRENT == 3 )) && compadd -- summary auth ssh errors search ;;
+            ctf)     (( CURRENT == 3 )) && compadd -- new list path ;;
+            config)  (( CURRENT == 3 )) && compadd -- show path init edit set ;;
+            scan)    (( CURRENT == 3 )) && compadd -- profiles results; _files ;;
+            help)    compadd -- scan network monitor logs ctf config god red sessions ;;
+        esac
+    }
+    compdef _urb_complete urb
+fi
+
 # Mensaje de bienvenida: solo en la primera shell de la sesión
 if [[ -z "${URB_GOD_GREETED:-}" ]]; then
     if [[ "$_urb_tag" == RED ]]; then

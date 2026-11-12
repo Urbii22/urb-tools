@@ -197,3 +197,45 @@ kill %1                                              # parar el servidor de prue
 ```
 
 **Limitaciones:** sin edición de título ni descripción (`findings add` los fija; se puede editar el fichero a mano), sin borrado desde la CLI, descripción de una sola línea, sin importación automática desde nmap ni informes (planificado), y las evidencias solo pueden estar dentro del laboratorio.
+
+## 2026-11-12 · Scan Manager + inventario de servicios + mejoras de uso
+
+**Problema de partida:** asociar el último escaneo a un hallazgo obligaba a escribir `"scans/$(ls … | grep '\.nmap$' | head -n1)"`. Ahora basta con `urb red findings evidence F-001 --scan latest`.
+
+**Decisiones**
+- **Índice `scans/.index`** (`S-NNN|base|epoch`), que solo crece y se escribe de forma atómica bajo el bloqueo del laboratorio (reutiliza el de findings). Los escaneos que ya existían se indexan la primera vez por orden temporal; los nuevos, al consultarlos o al terminar `recon initial`. Un ID no cambia mientras se conserve el índice, aunque se borren los ficheros (se ve como `missing`). **Límite de la recuperación:** con el índice corrupto se ignoran las líneas dañadas; con el índice borrado se reconstruye y los IDs pueden no coincidir con los antiguos. Las evidencias guardan la ruta, no el ID.
+- **Hora fiable:** el nombre del fichero (`AAAAMMDD-HHMMSS`, que pone URB), después `start=` del XML y por último la fecha de modificación. `latest` es el escaneo **completo** más reciente.
+- **Estados** calculados al consultar: `complete` (XML con `exit="success"` y `.nmap`), `incomplete` (sin `<finished>`), `failed` (`.log` conservado o `exit` de error), `partial` (faltan ficheros), `missing`.
+- **Servicios:** `lib/nmap_services.py` (Python 3, solo biblioteca estándar, `xml.etree.iterparse`). La fuente de verdad son los XML; `scans/.services` es una caché derivada que se reconstruye solo cuando cambia su sello (índice + tamaño y fecha de cada XML), o con `services refresh`. Hay una fila por host + protocolo + puerto con la observación más reciente; que un puerto no aparezca en un escaneo posterior no lo marca como cerrado. El historial guarda la procedencia. Un XML truncado conserva los hosts completos (marcados con `*`) y un XML roto se ignora sin afectar a los demás.
+- **Relación futura:** escaneo = `S-NNN`, servicio = `host:puerto/proto` (clave natural, sin tabla extra) y hallazgo = `F-NNN`. Los hallazgos ya conservan las claves `service=` y `scan=` si se añaden, sin duplicar la fuente de verdad.
+- **Autocompletado Zsh** (solo GOD/RED, `compdef _urb_complete urb`): listas fijas más lectura de `findings/F-*.finding`, `scans/.index` y `scans/.services` con funciones nativas de Zsh. Sin procesos, sin XML y sin nmap.
+
+**Fallos encontrados en las pruebas:**
+1. Si el índice todavía no existía, la primera indexación fallaba.
+2. `BASH_REMATCH` se sobrescribía al validar el nombre base (el mismo patrón de fallo que en findings).
+3. `read` con `IFS=$'\t'` fundía los campos vacíos de la caché y desplazaba columnas: ahora se separa por `\x1f`.
+
+| Comprobado automáticamente (WSL) | Pendiente de probar a mano en Kali |
+|---|---|
+| Indexación de escaneos antiguos, IDs estables, escaneos nuevos, `latest` y estados | Con los escaneos reales del laboratorio `demo` |
+| Concurrencia del índice, índice corrupto o borrado | Autocompletado con Tab en QTerminal |
+| `--scan latest/S-NNN`, duplicados, sin `.nmap`, sin escaneos | Tablas a la anchura habitual de QTerminal |
+| Varios hosts, TCP/UDP, versiones desconocidas, última observación, ausencia ≠ cerrado | |
+| XML truncado e inválido, caché (no se reconstruye sin cambios), `refresh` | |
+| Sin tráfico de red (nmap, ping, curl y nc como trampas) y sin python3 (código 127) | |
+
+**Prueba en Kali con el laboratorio `demo` existente**
+
+```bash
+cd ~/urb-tools && git pull && ./install.sh
+urb red lab use demo
+urb red scans                                   # tus escaneos de antes, ahora con S-001…
+urb red scans show latest
+urb red services                                # 127.0.0.1  8080/tcp  open  http …
+urb red services show 8080
+urb red findings evidence F-001 --scan latest   # sin rutas
+urb red findings show F-001
+urb red                                         # dentro: urb red findings evidence F-001 --scan <Tab>
+```
+
+**Limitaciones:** sin enlace operativo hallazgo ↔ servicio todavía (solo el diseño), sin comparar escaneos, `recon initial` sigue usando solo el perfil `default`, y el autocompletado de nombres de laboratorio asume `~/urb-labs`.

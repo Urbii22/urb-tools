@@ -325,6 +325,52 @@ urb red notes edit                                 # abre notes.md en $EDITOR
 
 ---
 
+## Escaneos y servicios (`urb red scans` / `urb red services`)
+
+URB conoce los escaneos que ya has hecho en el laboratorio y te deja referirte a ellos con IDs cortos, sin escribir rutas:
+
+```bash
+urb red scans                                  # escaneos con ID estable, fecha, objetivo, perfil y estado
+urb red scans show latest                      # detalle + puertos (también: show S-002)
+urb red findings evidence F-001 --scan latest  # asocia el .nmap de ese escaneo (o --scan S-002)
+
+urb red services                               # inventario de puertos abiertos (desde los XML de nmap)
+urb red services --all                         # también cerrados / filtrados
+urb red services show 8080                     # detalle, procedencia e historial (8080/udp, 10.10.10.3:8080…)
+urb red services refresh                       # reconstruir el inventario
+```
+
+```
+━━ URB RED / SERVICES · demo ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  HOST             PORT       STATE          SERVICE      VERSION                            SEEN
+  127.0.0.1        8080/tcp   open           http         SimpleHTTPServer 0.6 (Python 3.13) S-001
+```
+
+**Escaneos**
+- Una ejecución es el conjunto de ficheros con el mismo nombre base (`.nmap`, `.xml`, `.gnmap` y `.log` si falló). Nada se copia ni se mueve.
+- Los IDs `S-NNN` viven en `scans/.index`, que solo crece. Los escaneos que ya tenías se indexan la primera vez por orden temporal; los nuevos reciben el siguiente número, y `recon initial` muestra el ID al terminar.
+- Si borras los ficheros de un escaneo, su ID se conserva y aparece como `missing`.
+- Estados:
+  - `complete`: terminó bien.
+  - `incomplete`: se interrumpió (el XML no tiene `<finished>`).
+  - `failed`: nmap dio un error.
+  - `partial`: faltan ficheros.
+  - `missing`: ya no existen sus ficheros.
+- **`latest`** es el escaneo **completo** más reciente. La hora sale del nombre del fichero, si no del `start=` del XML y, como último recurso, de la fecha del fichero; nunca del orden de `ls`.
+- Si `.index` se corrompe, las líneas dañadas se ignoran con un aviso. Si se borra, se reconstruye desde los ficheros, pero los IDs **pueden no coincidir** con los originales. Las evidencias de los hallazgos guardan la ruta del fichero, no el ID, así que no se rompen.
+
+**Servicios**
+- La **única fuente de verdad son los XML de nmap**. Se analizan con Python 3 y su biblioteca estándar (`xml.etree`), sin expresiones regulares ni paquetes pip, y sin tráfico de red.
+- La caché `scans/.services` se reconstruye **solo** al ejecutar `urb red services`, y solo si cambió algún XML o el índice. Nunca se recalcula desde el prompt, el HUD ni el autocompletado.
+- Hay una fila por `host + puerto + protocolo` (TCP y UDP por separado), con la **observación más reciente**. Si un escaneo posterior lo vio cerrado, deja de listarse como abierto. Si un escaneo posterior simplemente no lo incluye, **no** se interpreta como cerrado.
+- Se guardan el primer y el último escaneo que lo vieron y el historial (`S-001=open S-003=closed`).
+- Un XML truncado aporta los hosts completos que se llegaron a leer, marcados con `*`. Un XML roto se ignora con un aviso, sin afectar a los demás. Lo que nmap no informa aparece como `unknown`.
+- El inventario no es un registro de hallazgos: un puerto abierto nunca crea un hallazgo automáticamente. Para relacionarlos en el futuro, cada servicio se identifica por la clave `host:puerto/proto` (por ejemplo `127.0.0.1:8080/tcp`), que un hallazgo podrá guardar como `service=`.
+
+**Autocompletado (dentro de GOD y RED):** `urb <Tab>`, `urb red <Tab>`, IDs `F-NNN`, `--scan latest|S-NNN` y los puertos de `services show`. Solo lee los índices ya existentes: no ejecuta nmap, no analiza XML y no lanza procesos.
+
+---
+
 ## Sesiones (`urb sessions`)
 
 Un gestor global de las sesiones de God Mode y URB Red. Funciona desde cualquier terminal, sin activar ninguna de ellas.
@@ -367,8 +413,10 @@ urb-tools/
 │   ├── lab.sh            # contexto de laboratorio y objetivo (.urb-lab, active-lab)
 │   ├── diagnose.sh       # diagnóstico de errores (confirmed / possible / unknown)
 │   ├── findings.sh       # hallazgos: formato, bloqueo, IDs, evidencias, notas
+│   ├── scans.sh          # índice de escaneos (S-NNN), estados, latest, caché de servicios
+│   ├── nmap_services.py  # XML de nmap → inventario (Python 3, solo biblioteca estándar)
 │   └── dashboard.sh      # URB Terminal (dashboard principal)
-├── modules/              # scan, network, monitor, logs, ctf, settings, red, findings, sessions
+├── modules/              # scan, network, monitor, logs, ctf, settings, red, findings, inventory, sessions
 ├── godmode/              # URB God Mode (independiente de los módulos)
 │   ├── god.sh            # activación, sesión tmux aislada, salida, --status/--kill/--attach-only
 │   ├── session.sh        # perfiles y consultas de sesión de solo lectura (compartido)
