@@ -407,7 +407,7 @@ Instalación comprobada: `./install.sh --yes` en un HOME temporal de WSL; el `ur
 
 | Feature | Código | Tests | Instalado | Probado en vivo |
 |---|---|---|---|---|
-| Rueda en GOD/RED (shell) | ✅ | ✅ | — | ✅ QTerminal (Diego, con GOD_MOUSE=1 a mano); ❌ con los bindings nuevos |
+| Rueda en GOD/RED (shell) | ✅ | ✅ | ✅ Kali | ✅ QTerminal (Diego, 2026-11-12, tras instalar 8f1ff6f) |
 | Rueda en less/vim dentro de GOD/RED | ✅ | ✅ | — | ❌ QTerminal |
 | Shift + arrastrar para seleccionar | — | — | — | ❌ QTerminal |
 | GOD_MOUSE aplicado al reconectar | ✅ | ✅ | — | ✅ WSL pty |
@@ -425,3 +425,5 @@ man ls                   # rueda: avanza/retrocede en man (q para salir)
 ```
 
 **Nota:** quien ya tenga `GOD_MOUSE="0"` en su `urb.conf` (lo copia `urb config init`) seguirá sin ratón hasta cambiarlo.
+
+**Confirmación (2026-11-12):** con `8f1ff6f` instalado en Kali, Diego indica que la rueda «parece funcionar correctamente» en QTerminal. No ha detallado qué pasos probó: la rueda en `less`/`man` y la selección con Shift + arrastrar siguen sin confirmarse por separado.
