@@ -28,6 +28,9 @@ ${C_BOLD}SHELL${C_RESET}
   urb red --no-anim               Open without animations
   urb red --kill [--yes]          End the URB Red session (God Mode is not affected)
   urb red --session               Show whether a URB Red session is running
+  In RED: scan = recon; recon, services, scans, findings, notes, target,
+  lab and status run the corresponding 'urb red' command directly.
+  Existing commands take precedence; on conflict use 'urb red <command>'.
 EOF
         ;;
         lab|labs) cat <<EOF

@@ -124,6 +124,28 @@ if [[ "$_urb_tag" == RED ]]; then
     }
 fi
 
+# Contextual commands are registered per profile, after the user's configuration.
+# A conflict leaves the existing command untouched; the full CLI remains available.
+typeset -ga _urb_context_commands
+_urb_context_commands=()
+_urb_register_context_command() {
+    local name="$1" subcommand="$2"
+    if (( $+aliases[$name] || $+galiases[$name] || $+saliases[$name] )) || whence -w "$name" >/dev/null 2>&1; then
+        print -u2 -r -- "URB ${URB_PROFILE:u}: '$name' already exists; use 'urb ${URB_PROFILE} $subcommand' instead."
+        return
+    fi
+    functions[$name]='"${URB_HOME}/bin/urb" red '"$subcommand"' "$@"'
+    _urb_context_commands+=("$name")
+}
+if [[ "${URB_PROFILE:-}" == red ]]; then
+    _urb_register_context_command scan recon
+    for _urb_context_name in recon services scans findings notes target lab status; do
+        _urb_register_context_command "$_urb_context_name" "$_urb_context_name"
+    done
+    unset _urb_context_name
+fi
+unfunction _urb_register_context_command
+
 # --- 4. Autocompletado de 'urb' (GOD y RED) -------------------------------------------------
 # Ligero: listas fijas y lectura directa de los índices del laboratorio
 # (findings/F-*.finding, scans/.index, scans/.services). Nunca ejecuta nmap,
@@ -238,6 +260,16 @@ if (( $+functions[compdef] )); then
         esac
     }
     compdef _urb_complete urb
+    # Present the short command as `urb red <subcommand>` to the same completer.
+    _urb_context_complete() {
+        local -a words=(urb red "${words[1]}" "${words[@]:1}")
+        local CURRENT=$(( CURRENT + 2 ))
+        [[ "${words[3]}" == scan ]] && words[3]=recon
+        _urb_complete
+    }
+    if [[ "${URB_PROFILE:-}" == red ]] && (( ${#_urb_context_commands} )); then
+        compdef _urb_context_complete "${_urb_context_commands[@]}"
+    fi
 fi
 
 # Mensaje de bienvenida: solo en la primera shell de la sesión

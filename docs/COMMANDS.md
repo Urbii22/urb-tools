@@ -203,6 +203,27 @@ Convierte la ventana de terminal en un espacio de trabajo avanzado: una **Zsh re
 ## 4. URB Red
 
 ### `urb red`
+
+Dentro de la shell del perfil RED se pueden usar estos comandos contextuales,
+con los mismos argumentos, opciones, salida y códigos que la CLI completa:
+
+| Comando corto | Equivalente |
+|---|---|
+| `scan ...` | `urb red recon ...` |
+| `recon ...` | `urb red recon ...` |
+| `services ...` | `urb red services ...` |
+| `scans ...` | `urb red scans ...` |
+| `findings ...` | `urb red findings ...` |
+| `notes ...` | `urb red notes ...` |
+| `target ...` | `urb red target ...` |
+| `lab ...` | `urb red lab ...` |
+| `status ...` | `urb red status ...` |
+
+Por ejemplo, `scan quick versions --dry-run`, `findings show F-001` y
+`lab use demo`. Los atajos admiten el mismo autocompletado que `urb red`.
+Si un nombre ya es un comando, alias, función o reservado de Zsh, RED lo
+conserva y avisa: utiliza la sintaxis completa indicada en el aviso. Fuera de
+RED no se instalan estos atajos. `urblab` sigue cambiando el directorio de la shell.
 Perfil para laboratorios sobre la misma infraestructura de God Mode:
 
 - Tema rojo y etiqueta `URB RED`.

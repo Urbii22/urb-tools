@@ -4,6 +4,52 @@
 
 _URB() { "$URB_HOME/bin/urb" --no-color "$@"; }
 
+test_red_context_commands_and_isolation() {
+    command -v zsh >/dev/null || return 0
+    mkdir -p "$HOME/mock-urb/bin" "$HOME/mockbin"
+    cat >"$HOME/mock-urb/bin/urb" <<'MOCK'
+#!/usr/bin/env bash
+printf '<%s>\n' "$@"
+exit 37
+MOCK
+    chmod +x "$HOME/mock-urb/bin/urb"
+    printf '#!/bin/sh\necho existing\n' >"$HOME/mockbin/services"
+    chmod +x "$HOME/mockbin/services"
+    printf 'alias findings="echo personal"\n' >"$HOME/.zshrc"
+    local out shell_dir="$URB_HOME/godmode/zsh" god_dir="$URB_HOME/godmode"
+    out="$(PATH="$HOME/mockbin:$PATH" URB_HOME="$HOME/mock-urb" URB_GOD_DIR="$god_dir" \
+        ZDOTDIR="$shell_dir" URB_PROFILE=red URB_PROFILE_TAG=RED URB_GOD_GREETED=1 \
+        zsh -i -c 'scan quick "two words" --dry-run; print "rc=$?"; recon initial; print "rc=$?"; whence -w services; alias findings; print "completion=${_comps[scan]}"; print "conflict_completion=${_comps[services]-}"' 2>&1)"
+    assert_contains "$out" "<red>"
+    assert_contains "$out" "<recon>"
+    assert_contains "$out" "<two words>"
+    assert_contains "$out" "<--dry-run>"
+    assert_contains "$out" "rc=37"
+    assert_contains "$out" "services: command"
+    assert_contains "$out" "findings='echo personal'"
+    assert_contains "$out" "use 'urb red services'"
+    assert_contains "$out" "completion=_urb_context_complete"
+    assert_not_contains "$out" "conflict_completion=_urb_context_complete"
+    out="$(URB_GOD_DIR="$URB_HOME/godmode" ZDOTDIR="$URB_HOME/godmode/zsh" URB_PROFILE=god URB_PROFILE_TAG=GOD URB_GOD_GREETED=1 zsh -i -c 'whence -w recon; print "completion=${_comps[recon]-}"' 2>&1)"
+    assert_not_contains "$out" "recon: function"
+    assert_not_contains "$out" "completion=_urb_context_complete"
+    out="$(ZDOTDIR="$HOME" zsh -i -c 'whence -w recon' 2>&1)"
+    assert_not_contains "$out" "recon: function"
+}
+
+test_red_short_completion_delegates() {
+    command -v zsh >/dev/null || return 0
+    local out
+    out="$(URB_GOD_DIR="$URB_HOME/godmode" ZDOTDIR="$URB_HOME/godmode/zsh" URB_PROFILE=red URB_PROFILE_TAG=RED URB_GOD_GREETED=1 zsh -i -c '
+        compadd() { print -r -- "$@"; }
+        words=(scan quick ""); CURRENT=3; _urb_context_complete
+        words=(findings ""); CURRENT=2; _urb_context_complete
+    ' 2>&1)"
+    assert_contains "$out" "versions"
+    assert_contains "$out" "show"
+    assert_contains "$out" "evidence"
+}
+
 # nmap simulado: registra la llamada y genera los ficheros -oA según MOCK_NMAP_MODE
 _mock_nmap() {
     mkdir -p "$HOME/mockbin"
