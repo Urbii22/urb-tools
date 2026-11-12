@@ -252,7 +252,9 @@ Dentro funcionan los atajos estándar de tmux: `Ctrl+B c` abre una ventana nueva
 - También se abre desde el dashboard (`urb` → `G`): al desconectarte (`Ctrl+B d`) o salir (`exit`) vuelves al menú en lugar de a la terminal.
 - Se ejecuta con tu usuario. No da privilegios de root ni ninguna capacidad extra: lo que hagas con `sudo` dentro de God Mode funciona igual que fuera.
 
-**Configuración** (`urb config set CLAVE VALOR`): `ANIMATIONS=0|1`, `GOD_HUD_POSITION=top|bottom` y `GOD_MOUSE=0|1`. Con `GOD_MOUSE=0`, la selección de texto de QTerminal funciona como siempre.
+**Configuración** (`urb config set CLAVE VALOR`): `ANIMATIONS=0|1`, `GOD_HUD_POSITION=top|bottom` y `GOD_MOUSE=0|1`.
+
+**Ratón y rueda** (`GOD_MOUSE=1`, por defecto): dentro de GOD/RED la rueda **desplaza la salida** del panel (al volver abajo, o con `q`, regresas al prompt). En programas a pantalla completa (`less`, `man`, `vim`) la rueda les llega como flechas. Para seleccionar y copiar texto con QTerminal, mantén **Shift** mientras arrastras. Con `GOD_MOUSE=0` tmux no usa el ratón: la selección es la de siempre, pero la rueda se convierte en ↑/↓ y recorre el historial de Zsh (tmux ocupa la pantalla alternativa). El ajuste se aplica al abrir o reconectar la sesión.
 
 ---
 

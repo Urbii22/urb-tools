@@ -380,3 +380,48 @@ Si la rueda falla en algún paso, anota **en cuál**, y prueba `printf '\e[?1049
 - Sin `~/.zshrc`, una Zsh real abre su asistente de primer uso (`zsh-newuser-install`) también desde NORMAL SHELL. Es lo esperado; en Kali el `.zshrc` ya existe.
 
 Instalación comprobada: `./install.sh --yes` en un HOME temporal de WSL; el `urb` instalado abre GOD, hace detach y vuelve al menú, abre la Zsh normal y vuelve, y sale con código 0. La sesión GOD sigue viva.
+
+## 2026-11-12 · Rueda del ratón dentro de GOD/RED (causa confirmada y corregida)
+
+**Causa (confirmada por Diego en QTerminal):**
+- El problema no estaba en el dashboard, sino en el diseño de GOD/RED.
+- tmux siempre dibuja en la pantalla alternativa, y con `GOD_MOUSE=0` (antes, el valor por defecto) no pide el ratón.
+- En ese caso QTerminal convierte la rueda en ↑/↓, que Zsh usa para recorrer el historial.
+- En la Zsh normal (sin tmux) la rueda funcionaba bien.
+- Prueba hecha: con `urb config set GOD_MOUSE 1` + sesión nueva, la rueda desplaza la salida.
+
+**Cambio:**
+- **Ratón activado por defecto:** `GOD_MOUSE=1` por defecto.
+- **Se aplica también al reconectar:** `god.sh` lo aplica al crear **y al reconectar** la sesión, así que cambiar la configuración no obliga a cerrarla.
+- **Rueda en `godmode/tmux.conf`** (`WheelUpPane` / `WheelDownPane`):
+  - si el programa del panel usa el ratón, o el panel ya está desplazándose, se le pasa el evento;
+  - en programas a pantalla completa sin ratón (`less`, `vim`) se envían 3 flechas;
+  - en la shell, entra en el modo de desplazamiento de tmux (`copy-mode -e`, que sale solo al volver abajo).
+- **Selección de texto con QTerminal:** Shift + arrastrar.
+
+**Tests (WSL, pty real):** se envían eventos de rueda SGR (`\e[<64;…M`) al pty.
+- En la shell → modo de desplazamiento con posición > 0.
+- En un programa en pantalla alternativa → recibe `ESC [ A` ×3 y tmux no se desplaza.
+- `GOD_MOUSE=0` + reconexión → `mouse off`.
+- Comprobado que el test falla con el ratón desactivado.
+
+| Feature | Código | Tests | Instalado | Probado en vivo |
+|---|---|---|---|---|
+| Rueda en GOD/RED (shell) | ✅ | ✅ | — | ✅ QTerminal (Diego, con GOD_MOUSE=1 a mano); ❌ con los bindings nuevos |
+| Rueda en less/vim dentro de GOD/RED | ✅ | ✅ | — | ❌ QTerminal |
+| Shift + arrastrar para seleccionar | — | — | — | ❌ QTerminal |
+| GOD_MOUSE aplicado al reconectar | ✅ | ✅ | — | ✅ WSL pty |
+
+**Prueba en QTerminal:**
+
+```bash
+cd ~/urb-tools && git pull && ./install.sh
+grep GOD_MOUSE ~/.config/urb-tools/urb.conf   # si pone "0" (copiado por 'urb config init'): urb config set GOD_MOUSE 1
+urb                      # → G (o R)
+seq 1 300                # rueda arriba: sube por la salida; rueda abajo hasta el final (o q): vuelve al prompt
+man ls                   # rueda: avanza/retrocede en man (q para salir)
+# Shift + arrastrar sobre un texto → Ctrl+Shift+C → pegar con Ctrl+Shift+V
+# Ctrl+B d → dashboard → q → seq 1 300 → la rueda desplaza en QTerminal normal
+```
+
+**Nota:** quien ya tenga `GOD_MOUSE="0"` en su `urb.conf` (lo copia `urb config init`) seguirá sin ratón hasta cambiarlo.

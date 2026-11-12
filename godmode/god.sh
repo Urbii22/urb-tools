@@ -88,7 +88,13 @@ ${C_BOLD}ISOLATION${C_RESET}
   God Mode runs as your user: it gives no extra privileges.
 
 ${C_BOLD}CONFIG${C_RESET} (urb config set KEY VALUE)
-  ANIMATIONS=0|1   GOD_HUD_POSITION=top|bottom   GOD_MOUSE=0|1
+  ANIMATIONS=0|1   GOD_HUD_POSITION=top|bottom   GOD_MOUSE=0|1 (default 1)
+
+${C_BOLD}MOUSE${C_RESET} (GOD_MOUSE=1)
+  Wheel: scrolls the output (q or scrolling back down returns to the prompt);
+  in full-screen programs (less, vim) it sends arrow keys to them.
+  Select text with the terminal: Shift + drag. GOD_MOUSE=0 turns the mouse off
+  (then the wheel sends arrow keys, which browse the zsh history).
 EOF
 }
 
@@ -264,7 +270,7 @@ god_start() {
     local term="screen-256color" pos mouse resume=0 rc
     if infocmp tmux-256color >/dev/null 2>&1; then term="tmux-256color"; fi
     pos="$(cfg GOD_HUD_POSITION top)"; [[ "$pos" == "bottom" ]] || pos="top"
-    mouse="$(cfg GOD_MOUSE 0)"
+    if cfg_bool GOD_MOUSE 1; then mouse="on"; else mouse="off"; fi
     urb_read_theme "${GOD_DIR}/themes/urb.theme" 1
     [[ "$P_THEME" != "urb" ]] && urb_read_theme "${GOD_DIR}/themes/${P_THEME}.theme" 1
     export URB_GOD_DIR="$GOD_DIR" URB_GOD_TERM="$term" URB_GOD_HUD_POSITION="$pos"
@@ -305,7 +311,6 @@ god_start() {
             god_tmux set-environment -t "$GOD_SESSION" "${kv%%=*}" "${kv#*=}" || cfg_err=1
         done
         god_tmux set-option -t "$GOD_SESSION" default-command "$zcmd" >/dev/null || cfg_err=1
-        if [[ "$mouse" == "1" ]]; then god_tmux set-option -g mouse on >/dev/null || cfg_err=1; fi
         if (( cfg_err )); then
             # Sin reintentos: se informa. Si la sesión ya no existe, su shell terminó al arrancar.
             if god_session_exists; then
@@ -319,6 +324,10 @@ god_start() {
         fi
     fi
     trap - INT TERM HUP
+
+    # Ratón (GOD_MOUSE): se aplica también al reconectar, así un cambio en la
+    # configuración vale sin cerrar la sesión. Solo afecta al servidor de este perfil.
+    god_tmux set-option -g mouse "$mouse" >/dev/null 2>&1 || msg_warn "${P_NAME}: could not set the mouse mode (${mouse})."
 
     # Guardar el título de la ventana y entrar (misma ventana de terminal)
     printf '\e[22;0t'

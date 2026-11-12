@@ -97,7 +97,7 @@ Claves principales (valores por defecto entre paréntesis):
 | `DISCOVER_PRIVATE_ONLY` (`1`) | Descubrimiento solo en redes privadas |
 | `MONITOR_INTERVAL` (`2`), `MONITOR_PROCS` (`12`) | Monitor |
 | `LOGS_LIMIT` (`200`) | Líneas máximas de `urb logs` |
-| `GOD_HUD_POSITION` (`top`), `GOD_MOUSE` (`0`) | HUD y ratón de God Mode / URB Red |
+| `GOD_HUD_POSITION` (`top`), `GOD_MOUSE` (`1`) | HUD y ratón de God Mode / URB Red. Con `1` la rueda desplaza la salida (seleccionar texto: Shift + arrastrar); con `0` la rueda envía ↑/↓ y recorre el historial de Zsh. Se aplica al abrir o reconectar |
 
 **Precedencia:** valor explícito en el comando > tu configuración > valor por defecto.
 
@@ -195,6 +195,7 @@ Convierte la ventana de terminal en un espacio de trabajo avanzado: una **Zsh re
   - No escribe en tu configuración.
   - El historial de comandos va a tu `HISTFILE` habitual.
 - **Configuración:** `GOD_HUD_POSITION`, `GOD_MOUSE` y `ANIMATIONS`.
+- **Ratón** (`GOD_MOUSE=1`, por defecto): la rueda desplaza la salida del panel (vuelves al prompt al bajar del todo o con `q`); en programas a pantalla completa (`less`, `vim`) les llega como flechas. Para seleccionar texto con QTerminal: **Shift + arrastrar**.
 - **Relacionados:** `urb red` y `urb sessions`.
 
 ---
@@ -541,7 +542,8 @@ Servidor HTTP con el `http.server` de la biblioteca estándar de Python.
 | `tmux server ended unexpectedly` | El servidor tmux murió estando conectado | Es un error real: `urb sessions` y vuelve a abrir el perfil |
 | Dashboard: `… cannot start inside another tmux session` | Abriste `urb` dentro de otro tmux | Desconéctate de ese tmux (`Ctrl+B d`) y abre `urb` de nuevo; la Zsh normal y las herramientas funcionan igualmente |
 | `Invalid START_MODE …` al abrir `urb` | Valor no admitido en tu configuración | `urb config set START_MODE dashboard` (se abre el dashboard mientras tanto) |
-| La rueda del ratón recorre el historial en lugar de desplazar la salida | La terminal se quedó en la **pantalla alternativa** (en ella, QTerminal y otros convierten la rueda en flechas ↑/↓). Sin confirmar en QTerminal; en pty se reprodujo con Ctrl+C durante la animación de salida de GOD/RED (corregido) | `tput rmcup` (o `printf '\e[?1049l'`) devuelve la pantalla principal; `reset` si además el cursor no se ve |
+| La rueda del ratón recorre el historial en lugar de desplazar la salida | Dentro de GOD/RED: el ratón de tmux está desactivado (`GOD_MOUSE=0`). tmux ocupa la pantalla alternativa, donde QTerminal convierte la rueda en ↑/↓ (confirmado en QTerminal). Fuera de tmux: la terminal se quedó en la pantalla alternativa | `urb config set GOD_MOUSE 1` y vuelve a abrir o reconectar la sesión. Fuera de tmux: `tput rmcup` (o `printf '\e[?1049l'`), o `reset` |
+| No puedo seleccionar texto con el ratón dentro de GOD/RED | Con `GOD_MOUSE=1` el ratón lo gestiona tmux | Mantén **Shift** mientras arrastras (selección de QTerminal) |
 | No puedo leer los logs | Tu usuario no está en `adm`/`systemd-journal` | `--sudo` o `sudo usermod -aG adm $USER` (y vuelve a iniciar sesión) |
 
 Diagnóstico general: `urb doctor`, `urb god --check`, `urb sessions` y `urb red status`.

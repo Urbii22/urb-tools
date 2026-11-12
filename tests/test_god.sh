@@ -234,3 +234,54 @@ test_god_ctrl_c_during_exit_animation_restores_screen() {
     tmux -L "$URB_GOD_SOCKET" has-session -t god 2>/dev/null || _fail "session lost"
     _tmux_cleanup "$URB_GOD_SOCKET"
 }
+
+# --- Rueda del ratón dentro de GOD/RED -------------------------------------------------
+# Se envía al pty la misma secuencia que manda el terminal al girar la rueda
+# (SGR: botón 64 = arriba, 65 = abajo) y se comprueba qué hace tmux.
+_WHEEL_UP=$'\e[<64;10;10M' _WHEEL_DOWN=$'\e[<65;10;10M'
+_keys_wheel() {
+    local s="$URB_GOD_SOCKET"
+    sleep 3
+    printf 'seq 1 200\r'; sleep 1
+    printf '%s' "$_WHEEL_UP"; sleep 0.5; printf '%s' "$_WHEEL_UP"; sleep 0.8
+    tmux -L "$s" display -p -t god '#{pane_in_mode}|#{scroll_position}' >"$HOME/w_shell" 2>/dev/null
+    printf 'q'; sleep 0.5                          # salir del modo de desplazamiento
+    # Programa a pantalla completa sin ratón: recibe flechas (no se desplaza tmux)
+    printf 'tput smcup; stty -icanon -echo; head -c 9 | od -An -c > "$HOME/w_keys"; stty sane; tput rmcup\r'; sleep 1.2
+    printf '%s' "$_WHEEL_UP"; sleep 0.8
+    tmux -L "$s" display -p -t god '#{pane_in_mode}' >"$HOME/w_alt_mode" 2>/dev/null
+    sleep 1
+    printf '\002d'; sleep 1.5
+}
+test_god_mouse_wheel_scrolls_output_not_history() {
+    _have_god_deps || return 0
+    local urb="$URB_HOME/bin/urb" cap
+    URB_GOD_SOCKET="$(_god_socket)"; export URB_GOD_SOCKET
+    ( cd "$HOME" && _god_pty "$HOME/wh.txt" "$urb --no-color god --no-anim" _keys_wheel )
+    cap="$(cat "$HOME/wh.txt")"
+    assert_eq "$(tmux -L "$URB_GOD_SOCKET" show -gv mouse 2>/dev/null)" "on"
+    assert_contains "$cap" $'\e[?1000h'                        # tmux pidió el ratón al terminal
+    # En la shell: la rueda entra en el modo de desplazamiento y sube por la salida
+    local m; m="$(cat "$HOME/w_shell" 2>/dev/null)"
+    assert_eq "${m%%|*}" "1" "(pane_in_mode after wheel in shell)"
+    [[ "${m#*|}" =~ ^[1-9][0-9]*$ ]] || _fail "scroll position should be > 0, got [$m]"
+    # En un programa a pantalla completa: recibe 3 flechas ↑ y tmux no se desplaza
+    assert_eq "$(cat "$HOME/w_alt_mode" 2>/dev/null)" "0"
+    assert_eq "$(tr -s ' ' <"$HOME/w_keys" 2>/dev/null | tr -d '\n')" " 033 [ A 033 [ A 033 [ A"
+    _tmux_cleanup "$URB_GOD_SOCKET"
+}
+
+# GOD_MOUSE=0 desactiva el ratón, y el cambio se aplica al reconectar
+_keys_detach_q() { sleep 3; printf '\002d'; sleep 1.5; }
+test_god_mouse_setting_applies_on_reconnect() {
+    _have_god_deps || return 0
+    local urb="$URB_HOME/bin/urb"
+    URB_GOD_SOCKET="$(_god_socket)"; export URB_GOD_SOCKET
+    ( cd "$HOME" && _god_pty "$HOME/m1.txt" "$urb --no-color god --no-anim" _keys_detach_q )
+    assert_eq "$(tmux -L "$URB_GOD_SOCKET" show -gv mouse 2>/dev/null)" "on"
+    "$urb" config set GOD_MOUSE 0 >/dev/null
+    ( cd "$HOME" && _god_pty "$HOME/m2.txt" "$urb --no-color god --no-anim" _keys_detach_q )
+    assert_eq "$(tmux -L "$URB_GOD_SOCKET" show -gv mouse 2>/dev/null)" "off"
+    assert_contains "$(cat "$HOME/m2.txt")" "Detached from God Mode"
+    _tmux_cleanup "$URB_GOD_SOCKET"
+}
