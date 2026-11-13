@@ -1,0 +1,8 @@
+# God Mode: amarillo y dorado sobre fondo oscuro (ANSI 256).
+# El verde de estado y el rojo de error se conservan en la paleta compartida.
+URB_C_PRIMARY=220
+URB_C_ELECTRIC=214
+URB_C_DEEP=136
+URB_C_GREEN=220
+URB_C_LABEL=179
+URB_LOGO_GRADIENT=229 227 220 214 178 136

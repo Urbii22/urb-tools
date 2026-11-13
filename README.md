@@ -224,6 +224,8 @@ Cada módulo también puede ejecutarse por separado: `bash modules/network.sh ro
 
 ## God Mode (`urb god`)
 
+God Mode utiliza una paleta amarilla y dorada; RED y BLUE conservan sus colores propios.
+
 God Mode convierte la ventana de terminal en la que estás (QTerminal u otra) en un espacio de trabajo avanzado. Sigue siendo **tu Zsh real**: comandos, autocompletado, historial, tuberías, programas interactivos y herramientas de Kali funcionan igual que siempre. Por debajo usa tmux, con un HUD compacto en la barra de estado y el prompt URB.
 
 ```bash

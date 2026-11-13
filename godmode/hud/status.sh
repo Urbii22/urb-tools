@@ -22,6 +22,7 @@ is_uint "$width" || width=120
 
 # Paleta (datos, no código): base + tema del perfil
 urb_read_theme "${GOD_DIR}/themes/urb.theme"
+[[ "$hud" == "god" ]] && urb_read_theme "${GOD_DIR}/themes/god.theme"
 [[ "$hud" == "red" ]] && urb_read_theme "${GOD_DIR}/themes/red.theme"
 [[ "$hud" == "blue" ]] && urb_read_theme "${GOD_DIR}/themes/blue.theme"
 
