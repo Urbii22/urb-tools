@@ -95,13 +95,26 @@ ${C_BOLD}CONFIG${C_RESET} (urb config set KEY VALUE)
 ${C_BOLD}MOUSE${C_RESET} (GOD_MOUSE=1)
   Wheel: scrolls the output (q or scrolling back down returns to the prompt);
   in full-screen programs (less, vim) it sends arrow keys to them.
-  Select text with the terminal: Shift + drag. GOD_MOUSE=0 turns the mouse off
+  Drag to select: on release it is copied to the clipboard (needs xclip, xsel
+  or wl-copy) and stays highlighted; click, q or Esc to go back to the prompt.
+  Shift + drag selects with the terminal instead. GOD_MOUSE=0 turns the mouse off
   (then the wheel sends arrow keys, which browse the zsh history).
 EOF
 }
 
 # --- Utilidades ---------------------------------------------------------------------
 god_tmux() { "$GOD_TMUX_BIN" -L "$GOD_SOCKET" "$@"; }
+
+# god_clip_cmd → comando que copia stdin al portapapeles del escritorio ("" si no hay)
+god_clip_cmd() {
+    if [[ -n "${WAYLAND_DISPLAY:-}" ]] && command -v wl-copy >/dev/null 2>&1; then
+        printf 'wl-copy'
+    elif [[ -n "${DISPLAY:-}" ]] && command -v xclip >/dev/null 2>&1; then
+        printf 'xclip -selection clipboard -in'
+    elif [[ -n "${DISPLAY:-}" ]] && command -v xsel >/dev/null 2>&1; then
+        printf 'xsel --clipboard --input'
+    fi
+}
 
 # god_version_ge "3.6a" "3.0" → 0 si la primera es >= la segunda (major.minor)
 god_version_ge() {
@@ -252,9 +265,10 @@ god_start() {
     if infocmp tmux-256color >/dev/null 2>&1; then term="tmux-256color"; fi
     pos="$(cfg GOD_HUD_POSITION top)"; [[ "$pos" == "bottom" ]] || pos="top"
     if cfg_bool GOD_MOUSE 1; then mouse="on"; else mouse="off"; fi
+    local clip; clip="$(god_clip_cmd)"
     urb_read_theme "${GOD_DIR}/themes/urb.theme" 1
     [[ "$P_THEME" != "urb" ]] && urb_read_theme "${GOD_DIR}/themes/${P_THEME}.theme" 1
-    export URB_GOD_DIR="$GOD_DIR" URB_GOD_TERM="$term" URB_GOD_HUD_POSITION="$pos"
+    export URB_GOD_DIR="$GOD_DIR" URB_GOD_TERM="$term" URB_GOD_HUD_POSITION="$pos" URB_GOD_CLIP="$clip"
     export URB_PROFILE="$P_PROFILE" URB_PROFILE_TAG="$P_TAG" URB_PROFILE_LABEL="$P_LABEL" \
            URB_PROFILE_THEME="$P_THEME" URB_PROFILE_HUD="$P_HUD" URB_PROFILE_CMD="$P_CMD"
     _god_apply_logo_gradient
@@ -305,6 +319,8 @@ god_start() {
     # Ratón (GOD_MOUSE): se aplica también al reconectar, así un cambio en la
     # configuración vale sin cerrar la sesión y sin alterar las demás.
     god_tmux set-option -t "=${session}:" mouse "$mouse" >/dev/null 2>&1 || msg_warn "${P_NAME}: could not set the mouse mode (${mouse})."
+    # Portapapeles: también al reconectar (servidores arrancados antes de instalar xclip)
+    god_tmux set-option -s copy-command "$clip" >/dev/null 2>&1 || true
 
     # Guardar el título de la ventana y entrar (misma ventana de terminal)
     printf '\e[22;0t'

@@ -264,7 +264,7 @@ Dentro funcionan los atajos estándar de tmux: `Ctrl+B c` abre una ventana nueva
 
 **Configuración** (`urb config set CLAVE VALOR`): `ANIMATIONS=0|1`, `GOD_HUD_POSITION=top|bottom` y `GOD_MOUSE=0|1`.
 
-**Ratón y rueda** (`GOD_MOUSE=1`, por defecto): dentro de GOD/RED la rueda **desplaza la salida** del panel (al volver abajo, o con `q`, regresas al prompt). En programas a pantalla completa (`less`, `man`, `vim`) la rueda les llega como flechas. Para seleccionar y copiar texto con QTerminal, mantén **Shift** mientras arrastras. Con `GOD_MOUSE=0` tmux no usa el ratón: la selección es la de siempre, pero la rueda se convierte en ↑/↓ y recorre el historial de Zsh (tmux ocupa la pantalla alternativa). El ajuste se aplica al abrir o reconectar la sesión.
+**Ratón y rueda** (`GOD_MOUSE=1`, por defecto): dentro de GOD/RED la rueda **desplaza la salida** del panel (al volver abajo, o con `q`, regresas al prompt). En programas a pantalla completa (`less`, `man`, `vim`) la rueda les llega como flechas. Para copiar, **arrastra** con el ratón: al soltar, el texto va al portapapeles (`Ctrl+Shift+V` para pegar) y queda marcado; un clic, `q` o `Esc` vuelven al prompt. Necesita `xclip` (X11, lo ofrece `./install.sh`), `xsel` o `wl-copy` (Wayland). Con **Shift** + arrastrar seleccionas con QTerminal, como sin tmux. Con `GOD_MOUSE=0` tmux no usa el ratón: la selección es la de siempre, pero la rueda se convierte en ↑/↓ y recorre el historial de Zsh (tmux ocupa la pantalla alternativa). El ajuste se aplica al abrir o reconectar la sesión.
 
 ---
 
@@ -484,6 +484,20 @@ Un árbol plegable con todas las sesiones abiertas, agrupadas por perfil y con s
 - `Detached from …`: te has desconectado (`Ctrl+B d` o has cerrado la ventana). La sesión sigue viva.
 - `… off. Session ended: its last shell exited …`: terminó la última shell de la sesión (`exit`, `Ctrl+D`) o alguien la cerró (`urb sessions kill`, `kill-session`). tmux no permite distinguir entre estos casos.
 - `… tmux server ended unexpectedly`: el servidor tmux murió estando conectado. Es un error (código 1), no una salida normal.
+
+### Disposición de trabajo (`urb layout`)
+
+Abre una pestaña nueva de QTerminal partida en 4 paneles y escribe en cada uno su comando:
+
+```
+┌──────────────┬──────────────┐
+│ claude       │ urb blue     │
+├──────────────┼──────────────┤
+│ urb god      │ urb red      │
+└──────────────┴──────────────┘
+```
+
+La disposición está en `~/.config/urb-tools/layout.conf` (`urb layout edit`): una línea por panel, `<tl|tr|bl|br> <carpeta> <comando>`; `.` es la carpeta desde la que lo lanzas y `-` deja solo la shell. `urb layout reset` vuelve a la de por defecto. Usa la interfaz D-Bus de QTerminal (`busctl`), así que solo funciona en QTerminal.
 
 **HUD:** con suficiente anchura (GOD desde 140 columnas, RED desde 150) aparece `SES n`, el número de sesiones URB activas. Se calcula como mucho una vez cada 10 s (caché compartida en `$XDG_RUNTIME_DIR`) y no consulta tmux si no existe el socket. Con menos anchura, se oculta.
 

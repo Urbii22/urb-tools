@@ -452,7 +452,7 @@ El `S` del dashboard usa el mismo menú.
 | Feature | Código | Tests | Instalado | Probado en vivo |
 |---|---|---|---|---|
 | Menú de sesiones (árbol, colores, cerrar) | ✅ | ✅ WSL tmux 3.6 (pty) | — | ⏳ Kali |
-| Ctrl+B s / `sessions` (popup) | ✅ | ✅ WSL tmux 3.6 (pty) | — | ⏳ Kali |
+| Ctrl+B s / `sessions` (popup) | ✅ | ✅ WSL tmux 3.6 (pty) | ✅ Kali | ✅ Kali (`sessions` solo existe dentro de URB, por diseño) |
 | Cambio mismo perfil y salto entre perfiles | ✅ | ✅ WSL tmux 3.6 (pty) | — | ⏳ Kali |
 | `S` del dashboard con el menú nuevo | ✅ | ✅ WSL | — | ⏳ Kali |
 
@@ -467,4 +467,26 @@ urb god          # dentro: Ctrl+B s → árbol con GOD (1) y RED (2) en sus colo
                  # escribe 'sessions' → mismo menú; x + y sobre una RED → se cierra
                  # n sobre BLUE → abre BLUE en el directorio actual
 urb              # S → mismo menú fuera de tmux
+```
+
+## 2026-11-18 · Copiar con el ratón y `urb layout`
+
+**Copiar:** con el ratón activado, al arrastrar tmux guardaba la selección en su búfer y la borraba al soltar; QTerminal no soporta OSC 52, así que no llegaba nada al portapapeles. Ahora `god.sh` detecta `wl-copy` / `xclip` / `xsel` y lo pone como `copy-command` (también al reconectar). Al soltar se copia con `copy-pipe-no-clear` y la selección se queda marcada; un clic sale del modo copia. `install.sh` ofrece `xclip`.
+
+**`urb layout`:** abre una pestaña de QTerminal con 4 paneles (claude / urb blue / urb god / urb red) por D-Bus (`newTab`, `splitHorizontal`, `splitVertical`, `sendText`; comprobado a mano en QTerminal 2.4.0 que `splitHorizontal` deja los paneles lado a lado). La disposición se edita en `~/.config/urb-tools/layout.conf`.
+
+| Feature | Código | Tests | Instalado | Probado en vivo |
+|---|---|---|---|---|
+| Copiar al portapapeles en GOD/RED/BLUE | ✅ | ✅ WSL tmux 3.6 (xclip falso) | — | ⏳ Kali |
+| `urb layout` | ✅ | ✅ WSL (busctl falso) | — | ⏳ Kali (`splitVertical` sin probar) |
+
+Resultado: `tests/run.sh` → 190/190 · `shellcheck -S warning` → 0 avisos.
+
+**Para probar en Kali:**
+
+```bash
+cd ~/urb-tools && git pull && ./install.sh     # acepta instalar xclip si lo ofrece
+tmux -L urb-god kill-server; tmux -L urb-red kill-server; tmux -L urb-blue kill-server   # cierra TODAS las sesiones URB para que tmux cargue la config nueva
+urb god          # arrastra sobre un texto → queda marcado; Ctrl+Shift+V en otra terminal lo pega
+urb layout       # nueva pestaña: claude arriba-izq, BLUE arriba-der, GOD abajo-izq, RED abajo-der
 ```

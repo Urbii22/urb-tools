@@ -25,7 +25,7 @@ unset _urb_src
 for _f in lib/utils.sh lib/ui.sh lib/system.sh lib/lab.sh lib/diagnose.sh lib/findings.sh lib/scans.sh lib/engine.sh lib/dashboard.sh \
           modules/scan.sh modules/network.sh modules/monitor.sh \
           modules/logs.sh modules/ctf.sh modules/settings.sh modules/red.sh modules/findings.sh modules/inventory.sh \
-          modules/serve.sh godmode/session.sh modules/sessions.sh modules/blue.sh; do
+          modules/serve.sh godmode/session.sh modules/sessions.sh modules/blue.sh modules/layout.sh; do
     # shellcheck source=/dev/null
     source "${URB_HOME}/${_f}" || { echo "urb: failed to load ${_f}" >&2; exit 1; }
 done
@@ -48,11 +48,12 @@ urb_help() {
         red)              red_help "${2:-}"; return $? ;;
         blue)             blue_help; return $? ;;
         sessions|session) sessions_help; return 0 ;;
+        layout)           layout_help; return 0 ;;
         serve)            eng_help serve; return $? ;;
         manual)           urb_manual_help; return 0 ;;
         help|version)     ;;
         *) msg_err "No help topic '${topic}'."
-           msg_dim "    Topics: scan network monitor logs ctf config god red blue sessions serve manual"
+           msg_dim "    Topics: scan network monitor logs ctf config god red blue sessions layout serve manual"
            return 2 ;;
     esac
     ui_print_logo
@@ -75,6 +76,7 @@ ${C_BOLD}COMMANDS${C_RESET}
   ${T_KEY}red${C_RESET} [command]        URB Red: labs, target, recon, scans, services, findings, notes
   ${T_KEY}blue${C_RESET} [command]       URB Blue: offline SOC investigation
   ${T_KEY}sessions${C_RESET} [action]    List / inspect / attach / end GOD, RED and BLUE sessions
+  ${T_KEY}layout${C_RESET} [action]      Open your 4-pane QTerminal layout (Claude, BLUE, GOD, RED)
   ${T_KEY}serve${C_RESET} [options]      Local HTTP server for the current directory (python3)
   ${T_KEY}doctor${C_RESET}               Check dependencies and environment
   ${T_KEY}manual${C_RESET} [examples]    Open the full manual (docs/COMMANDS.md, docs/EXAMPLES.md)
@@ -220,6 +222,7 @@ main() {
         serve)               serve_main "$@" ;;
         manual|man)          urb_manual "$@" ;;
         sessions|session)   sessions_main "$@" ;;
+        layout)              layout_main "$@" ;;
         help|-h|--help)      urb_help "$@" ;;
         version|-v|--version) urb_version ;;
         *)

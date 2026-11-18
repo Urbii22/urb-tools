@@ -193,7 +193,7 @@ if (( $+functions[compdef] )); then
         local -a ids lines
         local REPLY line
         if (( CURRENT == 2 )); then
-            compadd -- scan network monitor logs ctf config doctor god red blue sessions serve manual help version
+            compadd -- scan network monitor logs ctf config doctor god red blue sessions layout serve manual help version
             return
         fi
         case "${words[2]}" in
@@ -312,6 +312,7 @@ if (( $+functions[compdef] )); then
                 if (( CURRENT == 3 )); then compadd -- list info attach kill menu
                 elif (( CURRENT == 4 )); then compadd -- god red blue
                 fi ;;
+            layout)  (( CURRENT == 3 )) && compadd -- show edit reset help ;;
             god)     compadd -- --no-anim --status --kill --check --help ;;
             network) (( CURRENT == 3 )) && compadd -- summary interfaces routes gateway connections discover ping check ;;
             monitor) compadd -- --once --interval procs ;;
@@ -320,7 +321,7 @@ if (( $+functions[compdef] )); then
             config)  (( CURRENT == 3 )) && compadd -- show path init edit set ;;
             scan)    (( CURRENT == 3 )) && compadd -- profiles results; _files ;;
             help)
-                if (( CURRENT == 3 )); then compadd -- scan network monitor logs ctf config god red blue sessions serve manual
+                if (( CURRENT == 3 )); then compadd -- scan network monitor logs ctf config god red blue sessions layout serve manual
                 elif [[ "${words[3]}" == red ]] && (( CURRENT == 4 )); then
                     compadd -- shell lab target recon scans services findings notes report context
                 fi ;;

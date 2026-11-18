@@ -147,7 +147,7 @@ Claves principales (valores por defecto entre paréntesis):
 | `DISCOVER_PRIVATE_ONLY` (`1`) | Descubrimiento solo en redes privadas |
 | `MONITOR_INTERVAL` (`2`), `MONITOR_PROCS` (`12`) | Monitor |
 | `LOGS_LIMIT` (`200`) | Líneas máximas de `urb logs` |
-| `GOD_HUD_POSITION` (`top`), `GOD_MOUSE` (`1`) | HUD y ratón de God Mode / URB Red. Con `1` la rueda desplaza la salida (seleccionar texto: Shift + arrastrar); con `0` la rueda envía ↑/↓ y recorre el historial de Zsh. Se aplica al abrir o reconectar |
+| `GOD_HUD_POSITION` (`top`), `GOD_MOUSE` (`1`) | HUD y ratón de God Mode / URB Red. Con `1` la rueda desplaza la salida y arrastrar copia al portapapeles (xclip/xsel/wl-copy; Shift + arrastrar: selección de QTerminal); con `0` la rueda envía ↑/↓ y recorre el historial de Zsh. Se aplica al abrir o reconectar |
 
 **Precedencia:** valor explícito en el comando > tu configuración > valor por defecto.
 
@@ -244,7 +244,7 @@ Convierte la ventana de terminal en un espacio de trabajo avanzado: una **Zsh re
   - No escribe en tu configuración.
   - El historial de comandos va a tu `HISTFILE` habitual.
 - **Configuración:** `GOD_HUD_POSITION`, `GOD_MOUSE` y `ANIMATIONS`.
-- **Ratón** (`GOD_MOUSE=1`, por defecto): la rueda desplaza la salida del panel (vuelves al prompt al bajar del todo o con `q`); en programas a pantalla completa (`less`, `vim`) les llega como flechas. Para seleccionar texto con QTerminal: **Shift + arrastrar**.
+- **Ratón** (`GOD_MOUSE=1`, por defecto): la rueda desplaza la salida del panel (vuelves al prompt al bajar del todo o con `q`); en programas a pantalla completa (`less`, `vim`) les llega como flechas. Para copiar: **arrastra**; al soltar va al portapapeles y queda marcado (clic, `q` o `Esc` vuelven al prompt). Necesita `xclip`, `xsel` o `wl-copy`. **Shift + arrastrar** usa la selección de QTerminal.
 - **Relacionados:** `urb red` y `urb sessions`.
 
 ---
@@ -514,6 +514,15 @@ Añade una nota con marca temporal al hallazgo (hasta 1000 caracteres, de una l�
   - Otro perfil: desconecta la actual (sigue viva) y entra en la elegida en la misma terminal.
 - **Fuera de tmux:** `urb sessions menu` y la tecla `S` del dashboard. `Enter` reconecta y `n` abre el perfil.
 - Si ya tienes una función o alias `sessions`, se respeta y se avisa al abrir la shell. Usa `Ctrl+B s` o `urb sessions menu`.
+
+### `urb layout [show|edit|reset]`
+
+Abre en QTerminal una pestaña nueva con 4 paneles (por defecto: `claude` arriba-izq, `urb blue` arriba-der, `urb god` abajo-izq, `urb red` abajo-der). En cada panel hace `cd` a su carpeta y escribe su comando.
+
+- Fichero: `~/.config/urb-tools/layout.conf`, una línea por panel: `<tl|tr|bl|br> <carpeta> <comando>`. `.` = carpeta actual, `~` y rutas absolutas valen, `-` = solo shell.
+- `show` lo imprime, `edit` lo abre con `$EDITOR`, `reset` restaura el de por defecto.
+- Requisitos: QTerminal y `busctl`. Se puede lanzar desde dentro de GOD/RED/BLUE; la pestaña se abre en esa ventana.
+- Errores: sin QTerminal en D-Bus → `only works in QTerminal` (código 1); si un panel no se pudo preparar, se avisa cuál.
 - `urb sessions popup` es el lanzador interno que usan `Ctrl+B s` y `sessions`.
 
 ---
@@ -652,7 +661,7 @@ Servidor HTTP con el `http.server` de la biblioteca estándar de Python.
 | Dashboard: `… cannot start inside another tmux session` | Abriste `urb` dentro de otro tmux | Desconéctate de ese tmux (`Ctrl+B d`) y abre `urb` de nuevo; la Zsh normal y las herramientas funcionan igualmente |
 | `Invalid START_MODE …` al abrir `urb` | Valor no admitido en tu configuración | `urb config set START_MODE dashboard` (se abre el dashboard mientras tanto) |
 | La rueda del ratón recorre el historial en lugar de desplazar la salida | Dentro de GOD/RED: el ratón de tmux está desactivado (`GOD_MOUSE=0`). tmux ocupa la pantalla alternativa, donde QTerminal convierte la rueda en ↑/↓ (confirmado en QTerminal). Fuera de tmux: la terminal se quedó en la pantalla alternativa | `urb config set GOD_MOUSE 1` y vuelve a abrir o reconectar la sesión. Fuera de tmux: `tput rmcup` (o `printf '\e[?1049l'`), o `reset` |
-| No puedo seleccionar texto con el ratón dentro de GOD/RED | Con `GOD_MOUSE=1` el ratón lo gestiona tmux | Mantén **Shift** mientras arrastras (selección de QTerminal) |
+| Selecciono dentro de GOD/RED pero no llega nada al portapapeles | Falta `xclip`/`xsel`/`wl-copy`: tmux solo lo guarda en su búfer | `sudo apt install xclip` y vuelve a entrar en la sesión (o Shift + arrastrar) |
 | No puedo leer los logs | Tu usuario no está en `adm`/`systemd-journal` | `--sudo` o `sudo usermod -aG adm $USER` (y vuelve a iniciar sesión) |
 
 Diagnóstico general: `urb doctor`, `urb god --check`, `urb sessions` y `urb red status`.

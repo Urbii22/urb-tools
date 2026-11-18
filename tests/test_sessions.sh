@@ -416,3 +416,35 @@ test_sessions_popup_opens_from_ctrl_b_s_and_the_sessions_command() {
     assert_eq "$(wc -l <"$HOME/popup.sessions")" 1
     assert_status 0 tmux -L "$URB_RED_SOCKET" has-session
 }
+
+# --- Portapapeles: lo seleccionado en tmux llega a xclip y la selección se queda ----------
+_keys_copy() {
+    sleep 2.5; printf 'echo COPIAME\r'; sleep 1
+    local t=(tmux -L "$URB_RED_SOCKET") s
+    s="$("${t[@]}" list-sessions -F '#{session_name}' | head -n 1)"
+    "${t[@]}" show-options -sv copy-command >"$HOME/copy.cmd"
+    "${t[@]}" list-keys -T copy-mode MouseDragEnd1Pane >"$HOME/copy.keys"
+    "${t[@]}" copy-mode -t "=${s}:"
+    "${t[@]}" send-keys -t "=${s}:" -X search-backward 'COPIAME'
+    "${t[@]}" send-keys -t "=${s}:" -X begin-selection
+    "${t[@]}" send-keys -t "=${s}:" -N 7 -X cursor-right
+    "${t[@]}" send-keys -t "=${s}:" -X copy-pipe-no-clear
+    sleep 1
+    "${t[@]}" display-message -p -t "=${s}:" '#{pane_in_mode}' >"$HOME/copy.mode"
+    "${t[@]}" send-keys -t "=${s}:" -X cancel
+    sleep 0.5; printf 'exit\r'; sleep 1.5
+}
+
+test_god_copies_selection_to_the_desktop_clipboard() {
+    _have_deps || return 0
+    _unique_sockets
+    mkdir -p "$HOME/bin"
+    printf '#!/bin/sh\ncat > "$HOME/clip.txt"\n' >"$HOME/bin/xclip"; chmod +x "$HOME/bin/xclip"
+    PATH="$HOME/bin:$PATH" DISPLAY=":99" WAYLAND_DISPLAY="" \
+        _pty "$HOME/copy.pty" "$URB_HOME/bin/urb --no-color red --no-anim" _keys_copy
+    _cleanup_sockets
+    assert_eq "$(cat "$HOME/copy.cmd")" "xclip -selection clipboard -in"
+    assert_contains "$(cat "$HOME/copy.keys")" "copy-pipe-no-clear"
+    assert_eq "$(cat "$HOME/clip.txt" 2>/dev/null)" "COPIAME"
+    assert_eq "$(cat "$HOME/copy.mode")" "1" "(la selección sigue en pantalla tras copiar)"
+}
