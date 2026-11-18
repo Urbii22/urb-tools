@@ -23,7 +23,7 @@ cases link C-001 --alert A-001
 cases show C-001
 ```
 
-`Ctrl+B d` desacopla la sesión; `urb blue` reconecta. Una coincidencia de regla
+`Ctrl+B d` desconecta la terminal. Usa `urb sessions attach blue [sesión]` para retomarla. Una coincidencia de regla
 es una señal para investigar y no confirma un incidente.
 
 ### Investigación hasta el informe
@@ -139,18 +139,18 @@ urb sessions info red         # ventanas, paneles (comando y directorio)
 urb sessions attach red       # volver a RED (si no existiera, error: no crea ninguna)
 urb sessions kill red         # pide confirmación → y
 urb sessions                  # red none · god detached (God Mode intacto)
-urb god                       # reconectar a God Mode → exit → "God Mode off. Session ended…"
+urb sessions attach god       # retomar la única sesión GOD → exit → "God Mode off. Session ended…"
 ```
 
 Lo mismo sin salir del dashboard:
 
 ```text
 urb                           # dashboard
-  G                           # GOD MODE (crea o reconecta)  → trabaja… → Ctrl+B d
+  G                           # GOD MODE (sesión nueva) → trabaja… → Ctrl+B d
                               # de vuelta en el menú: "God Mode detached: your programs keep running"
                               # y GOD MODE marcado "● detached"
   R                           # RED MODE → Ctrl+B d → de vuelta en el menú (RED también "● detached")
-  S                           # SESSIONS: God Mode / URB Red con su estado → Enter reconecta
+  S                           # SESSIONS: elige la sesión que quieras retomar → Enter
   G                           # vuelve a la MISMA sesión de GOD (sus programas siguen ahí)
                               # → exit → "God Mode session ended (exit)"
   q                           # salir del dashboard: RED sigue viva en segundo plano

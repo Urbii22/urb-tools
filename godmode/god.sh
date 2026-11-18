@@ -38,6 +38,8 @@ GOD_TMUX_BIN="" GOD_ZSH_BIN="" GOD_TMUX_VER="" GOD_ZSH_VER=""
 SESS_GOD_DIR="$GOD_DIR"
 # shellcheck source=session.sh
 source "${GOD_DIR}/session.sh" || { echo "urb god: cannot load session.sh" >&2; exit 1; }
+# shellcheck source=../modules/sessions.sh
+source "${URB_HOME}/modules/sessions.sh" || exit 1
 
 # god_load_profile NOMBRE → perfil (datos validados) + tema del perfil
 god_load_profile() {
@@ -62,11 +64,11 @@ god_help() {
 ${C_BOLD}urb god${C_RESET} — URB God Mode: advanced workspace in your current terminal
 
 ${C_BOLD}USAGE${C_RESET}
-  urb god               Engage God Mode (or reconnect to a running session)
+  urb god               Open a fresh God Mode session
   urb god --no-anim     Engage without animations
-  urb god --status      Show whether a God Mode session is running
-  urb god --kill        End the God Mode session (asks if programs are running)
-  urb god --kill --yes  End it without asking
+  urb god --status      List God Mode sessions
+  urb god --kill [session] [--yes]  End one session (asks if programs are running)
+  urb sessions attach god [session]  Reconnect to a running session
   urb god --check       Check God Mode dependencies (tmux >= ${GOD_MIN_TMUX}, zsh)
   urb god --help        This help
 
@@ -76,7 +78,7 @@ ${C_BOLD}INSIDE GOD MODE${C_RESET}
 
   ${T_KEY}exit${C_RESET}          Leave: closes the shell and ends the session (back to your terminal)
   ${T_KEY}Ctrl+B d${C_RESET}      Detach: back to your terminal, programs KEEP RUNNING;
-                'urb god' reconnects to them
+                'urb sessions attach god [session]' reconnects to them
   ${T_KEY}urb god --kill${C_RESET} Terminate: ends the session and everything running in it
   ${T_KEY}Ctrl+B c${C_RESET}      New window · ${T_KEY}Ctrl+B %${C_RESET} / ${T_KEY}Ctrl+B "${C_RESET} split panes (standard tmux keys)
 
@@ -146,7 +148,7 @@ god_check_deps() {
     return "$rc"
 }
 
-god_session_exists() { god_tmux has-session -t "=${GOD_SESSION}" 2>/dev/null; }
+god_session_exists() { god_tmux has-session -t "=$1" 2>/dev/null; }
 
 _god_anim_enabled() {
     [[ "${URB_NO_ANIM:-0}" == "1" ]] && return 1
@@ -169,37 +171,7 @@ god_check() {
 
 god_status() {
     god_check_deps || return $?
-    if god_session_exists; then
-        local wins clients
-        wins="$(god_tmux list-windows -t "=${GOD_SESSION}" 2>/dev/null | wc -l)"
-        clients="$(god_tmux list-clients -t "=${GOD_SESSION}" 2>/dev/null | wc -l)"
-        msg_ok "${P_NAME} session running: ${wins} window(s), ${clients} attached terminal(s)."
-        god_tmux list-panes -s -t "=${GOD_SESSION}" -F '    #{window_index}.#{pane_index}  #{pane_current_command}  #{pane_current_path}' 2>/dev/null
-        msg_dim "    '${P_CMD}' to reconnect · '${P_CMD} --kill' to end it"
-    else
-        msg_info "No ${P_NAME} session running."
-    fi
-    return 0
-}
-
-god_kill() {
-    local assume_yes="${1:-0}" busy
-    god_check_deps || return $?
-    if ! god_session_exists; then msg_info "No ${P_NAME} session running."; return 0; fi
-    if [[ -n "${TMUX:-}" && "$TMUX" == *"/${GOD_SOCKET},"* ]]; then
-        msg_warn "You are inside ${P_NAME}: this will close the current terminal session too."
-    fi
-    # Procesos que no son una shell en espera
-    busy="$(god_tmux list-panes -s -t "=${GOD_SESSION}" -F '#{pane_current_command}' 2>/dev/null \
-            | grep -v -x -E 'zsh|bash|sh|-zsh|-bash' | sort -u | tr '\n' ' ')"
-    if [[ -n "$busy" && "$assume_yes" != "1" ]]; then
-        msg_warn "Programs still running in ${P_NAME}: ${busy}"
-        confirm "End the ${P_NAME} session and terminate them?" n || { msg_info "Cancelled."; return 1; }
-    fi
-    # Solo el servidor del socket de este perfil: nunca otros servidores tmux
-    if god_tmux kill-server 2>/dev/null; then msg_ok "${P_NAME} session ended."; return 0; fi
-    msg_err "Could not end the ${P_NAME} session."
-    return 1
+    sessions_list "$P_PROFILE"
 }
 
 # Líneas informativas reales para la animación de entrada
@@ -233,9 +205,25 @@ _god_fx_out() {
 }
 
 god_start() {
-    local use_anim=1 attach_only="${2:-0}"
+    local use_anim=1 attach_only="$2" session="$3"
     [[ "${1:-}" == "--no-anim" ]] && use_anim=0
     _god_anim_enabled || use_anim=0
+
+    if (( attach_only )); then
+        sess_query "$session"
+        case "$S_STATE" in
+            error)    msg_err "tmux: ${S_ERR}"; return 1 ;;
+            multiple) sess_choice_error; return 2 ;;
+            none)
+                msg_err "No ${P_NAME} session to attach to${session:+ (name: $session)}."
+                msg_dim "    Run 'urb sessions' to see running sessions or '${P_CMD}' to start a new one."
+                return 1 ;;
+        esac
+        session="$S_NAME"
+    else
+        # Un nombre distinto por lanzamiento, también si se abren a la vez.
+        printf -v session '%s-%s-%05d' "$GOD_SESSION" "$BASHPID" "$RANDOM"
+    fi
 
     if [[ ! -t 0 || ! -t 1 ]]; then
         msg_err "${P_NAME} needs an interactive terminal."
@@ -259,15 +247,8 @@ god_start() {
         return 1
     fi
 
-    # Modo "solo reconectar" (urb sessions attach): nunca crea una sesión
-    if (( attach_only )) && ! god_session_exists; then
-        msg_err "No ${P_NAME} session to attach to."
-        msg_dim "    Start one with: ${P_CMD}"
-        return 1
-    fi
-
     # Entorno para tmux.conf (colores, rutas, terminfo, perfil) — solo para este servidor
-    local term="screen-256color" pos mouse resume=0 rc
+    local term="screen-256color" pos mouse rc
     if infocmp tmux-256color >/dev/null 2>&1; then term="tmux-256color"; fi
     pos="$(cfg GOD_HUD_POSITION top)"; [[ "$pos" == "bottom" ]] || pos="top"
     if cfg_bool GOD_MOUSE 1; then mouse="on"; else mouse="off"; fi
@@ -279,19 +260,17 @@ god_start() {
     _god_apply_logo_gradient
     FX_TITLE="$P_TITLE"
 
-    god_session_exists && resume=1
-
     # Animación de entrada (interrumpible; la terminal se restaura siempre)
     trap 'printf "\e[0m\e[?25h\e[?1049l"; exit 130' INT TERM HUP
     if (( use_anim )); then
-        _god_engage_info "$resume"
+        _god_engage_info "$attach_only"
         god_fx_engage "${GOD_INFO[@]}"
     fi
 
-    if (( ! resume )); then
+    if (( ! attach_only )); then
         local zcmd
         printf -v zcmd 'exec %q -i' "$GOD_ZSH_BIN"
-        if ! god_tmux -f "${GOD_DIR}/tmux.conf" new-session -d -s "$GOD_SESSION" -c "$PWD" \
+        if ! god_tmux -f "${GOD_DIR}/tmux.conf" new-session -d -s "$session" -c "$PWD" \
                 -x "$UI_COLS" -y "$UI_ROWS" \
                 env ZDOTDIR="${GOD_DIR}/zsh" URB_GOD=1 URB_GOD_DIR="$GOD_DIR" URB_HOME="$URB_HOME" \
                     URB_USER_ZDOTDIR="${ZDOTDIR:-$HOME}" URB_PROFILE="$P_PROFILE" URB_PROFILE_TAG="$P_TAG" \
@@ -301,19 +280,17 @@ god_start() {
             return 1
         fi
         # Nuevas ventanas/paneles: también la Zsh del perfil, en el directorio del panel.
-        # Nota: set-environment/set-option NO aceptan el prefijo "=" de coincidencia
-        # exacta (buscarían una sesión llamada "=red"); en este servidor privado
-        # solo existen nuestras sesiones, así que se usa el nombre tal cual.
+        # "=nombre:" mantiene la coincidencia exacta también en set-option.
         local kv cfg_err=0
         for kv in "ZDOTDIR=${GOD_DIR}/zsh" "URB_GOD=1" "URB_GOD_DIR=${GOD_DIR}" "URB_HOME=${URB_HOME}" \
                   "URB_USER_ZDOTDIR=${ZDOTDIR:-$HOME}" "URB_PROFILE=${P_PROFILE}" "URB_PROFILE_TAG=${P_TAG}" \
                   "URB_PROFILE_THEME=${P_THEME}" "URB_PROFILE_CMD=${P_CMD}"; do
-            god_tmux set-environment -t "$GOD_SESSION" "${kv%%=*}" "${kv#*=}" || cfg_err=1
+            god_tmux set-environment -t "=${session}:" "${kv%%=*}" "${kv#*=}" || cfg_err=1
         done
-        god_tmux set-option -t "$GOD_SESSION" default-command "$zcmd" >/dev/null || cfg_err=1
+        god_tmux set-option -t "=${session}:" default-command "$zcmd" >/dev/null || cfg_err=1
         if (( cfg_err )); then
             # Sin reintentos: se informa. Si la sesión ya no existe, su shell terminó al arrancar.
-            if god_session_exists; then
+            if god_session_exists "$session"; then
                 msg_warn "${P_NAME}: could not fully configure the session (new windows may use your normal shell)."
             else
                 trap - INT TERM HUP
@@ -326,12 +303,12 @@ god_start() {
     trap - INT TERM HUP
 
     # Ratón (GOD_MOUSE): se aplica también al reconectar, así un cambio en la
-    # configuración vale sin cerrar la sesión. Solo afecta al servidor de este perfil.
-    god_tmux set-option -g mouse "$mouse" >/dev/null 2>&1 || msg_warn "${P_NAME}: could not set the mouse mode (${mouse})."
+    # configuración vale sin cerrar la sesión y sin alterar las demás.
+    god_tmux set-option -t "=${session}:" mouse "$mouse" >/dev/null 2>&1 || msg_warn "${P_NAME}: could not set the mouse mode (${mouse})."
 
     # Guardar el título de la ventana y entrar (misma ventana de terminal)
     printf '\e[22;0t'
-    god_tmux attach-session -t "=${GOD_SESSION}"
+    god_tmux attach-session -t "=${session}"
     rc=$?
     printf '\e[23;0t'
 
@@ -339,21 +316,24 @@ god_start() {
     #   sesión viva                  → desconexión (Ctrl+B d o ventana cerrada)
     #   sin sesión y attach = 0      → la sesión terminó: salió su última shell
     #                                  (exit, Ctrl+D) o alguien la cerró
-    #   sin sesión y attach != 0     → el servidor tmux terminó de forma inesperada
-    if god_session_exists; then
+    #   sin sesión y attach != 0     → desapareció la sesión o terminó el servidor
+    if god_session_exists "$session"; then
         if (( rc != 0 )); then
             msg_err "Could not attach to the ${P_NAME} session (tmux exit ${rc})."
-            msg_dim "    The session is still running: '${P_CMD}' to retry, '${P_CMD} --kill' to end it."
+            msg_dim "    Retry with 'urb sessions attach ${P_PROFILE} ${session}'."
             return 1
         fi
         (( use_anim )) && _god_fx_out "${P_TITLE} ${G_SEP} DETACHED"
-        msg_info "Detached from ${P_NAME}: your programs keep running."
-        msg_dim "    '${P_CMD}' to return · '${P_CMD} --kill' to end the session"
+        msg_info "Detached from ${P_NAME} (${session}): your programs keep running."
+        msg_dim "    urb sessions attach ${P_PROFILE} ${session}"
         return 0
     fi
     if (( rc != 0 )); then
-        msg_err "The ${P_NAME} tmux server ended unexpectedly (tmux exit ${rc}). The session is gone."
-        msg_dim "    This is not a normal detach; programs running in it were terminated."
+        if god_tmux list-sessions >/dev/null 2>&1; then
+            msg_err "The ${P_NAME} session '${session}' is gone (tmux exit ${rc})."
+        else
+            msg_err "The ${P_NAME} tmux server ended unexpectedly (tmux exit ${rc}). The session is gone."
+        fi
         return 1
     fi
     (( use_anim )) && _god_fx_out "${P_TITLE} OFF"
@@ -363,7 +343,7 @@ god_start() {
 }
 
 god_main() {
-    local action="start" anim_opt="" assume_yes=0 profile="god" help=0 attach_only=0
+    local action="start" anim_opt="" assume_yes=0 profile="god" help=0 attach_only=0 session=""
     while (( $# > 0 )); do
         case "$1" in
             -h|--help|help) help=1 ;;
@@ -372,21 +352,26 @@ god_main() {
             --kill|kill)    action="kill" ;;
             --check|check)  action="check" ;;
             --attach-only)  attach_only=1 ;;
+            --session-name) [[ $# -ge 2 ]] || { msg_err "--session-name needs a value"; return 2; }; session="$2"; shift ;;
             -y|--yes)       assume_yes=1 ;;
             --profile)      [[ $# -ge 2 ]] || { msg_err "--profile needs a value"; return 2; }; profile="$2"; shift ;;
-            *) msg_err "Unknown option for 'urb god': $1"; msg_dim "    See: urb god --help"; return 2 ;;
+            -*) msg_err "Unknown option for 'urb god': $1"; msg_dim "    See: urb god --help"; return 2 ;;
+            *) [[ -z "$session" ]] || { msg_err "Only one session at a time."; return 2; }; session="$1" ;;
         esac
         shift
     done
     god_load_profile "$profile" || return 2
     if (( help )); then god_help; return 0; fi
-    if [[ ! "$GOD_SOCKET" =~ ^[A-Za-z0-9_-]{1,64}$ ]]; then
-        msg_err "Invalid URB_${P_TAG}_SOCKET name."; return 2
+    if (( attach_only )) && [[ "$action" != start ]]; then
+        msg_err "--attach-only cannot be combined with --status, --kill or --check."; return 2
+    fi
+    if [[ -n "$session" && "$action" != kill ]] && (( ! attach_only )); then
+        msg_err "Unexpected session name: $session"; return 2
     fi
     case "$action" in
-        start)  god_start "$anim_opt" "$attach_only" ;;
+        start)  god_start "$anim_opt" "$attach_only" "$session" ;;
         status) god_status ;;
-        kill)   god_kill "$assume_yes" ;;
+        kill)   god_check_deps && sessions_end "$session" "$assume_yes" 0 ;;
         check)  god_check ;;
     esac
 }

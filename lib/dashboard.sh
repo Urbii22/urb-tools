@@ -55,7 +55,7 @@ DASH_ROWS=()          # filas del menú: "S|título de sección" o "I|índice"
 DASH_OFF=0            # primera fila visible del menú (desplazamiento)
 DASH_SEL=0
 DASH_STATUS="" DASH_STATUS_COL=""
-declare -gA D_SES=()  # estado de sesión por perfil (attached|detached|none|error)
+declare -gA D_SES=()  # estado de sesión por perfil (attached|detached|multiple|none|error)
 
 _dash_parse() {
     local i sec key label desc kind target state s sid stitle
@@ -161,7 +161,7 @@ _dash_collect_sessions() {
 # Estado de la sesión de un perfil, sin alterar las variables P_* del proceso
 _dash_session_state() {
     ( sess_load_profile "$1" >/dev/null 2>&1 || exit 0
-      sess_query "$GOD_SOCKET" "$GOD_SESSION" 0 >/dev/null 2>&1
+      sess_query >/dev/null 2>&1
       printf '%s' "$S_STATE" )
 }
 
@@ -308,6 +308,7 @@ _dash_item_tag() {
     case "${D_SES[$t]:-}" in
         attached) DTAG="${G_DOT} attached"; DTAG_COL=$T_OK ;;
         detached) DTAG="${G_DOT} detached"; DTAG_COL=$T_WARN ;;
+        multiple) DTAG="${G_DOT} sessions"; DTAG_COL=$T_OK ;;
         error)    DTAG="${G_BAD} tmux error"; DTAG_COL=$T_BAD ;;
     esac
 }
@@ -455,9 +456,9 @@ _dash_child() {
 # `urb red` (red_main) y `urb sessions attach` (sessions_attach). Cada uno hace
 # `exec bash godmode/god.sh ...` dentro de la subshell: no hay una segunda
 # implementación. Nunca se mata una sesión al volver.
-#   _dash_tmux_profile PERFIL start|attach
+#   _dash_tmux_profile PERFIL [start|attach] [SESION]
 _dash_tmux_profile() {
-    local p="$1" mode="${2:-start}" before after name cmd sock
+    local p="$1" mode="${2:-start}" session="${3:-}" after name cmd sock
     if ! _dash_is_profile "$p" || ! ( sess_load_profile "$p" >/dev/null 2>&1 ); then
         _dash_status "$T_BAD" "${G_BAD} Profile '${p}' is not installed (godmode/profiles/${p}.profile)."
         return 0
@@ -475,34 +476,24 @@ _dash_tmux_profile() {
         return 0
     fi
 
-    before="$(_dash_session_state "$p")"
-    if [[ "$mode" == "attach" && "$before" != "attached" && "$before" != "detached" ]]; then
-        _dash_status "$T_WARN" "${G_DIAM} No ${name} session to reconnect to. Start one with its menu entry or '${cmd}'."
-        return 0
-    fi
-
     case "$mode:$p" in
-        attach:*) _dash_child 1 1 _dash_run_sub sessions_attach "$p" ;;
+        attach:*) _dash_child 1 1 _dash_run_sub sessions_attach "$p" "$session" ;;
         start:god) _dash_child 1 1 _dash_run_sub urb_god ;;
         start:red) _dash_child 1 1 _dash_run_sub red_main ;;
         *)         _dash_child 1 1 _dash_run_sub urb_god --profile "$p" ;;
     esac
-    after="$(_dash_session_state "$p")"
-
-    # Detach, salida normal y fallo se distinguen por el código de god.sh y
-    # por el estado REAL de la sesión después (no se adivina)
-    if (( DASH_RC == 0 || DASH_RC == 130 )); then
+    if (( DASH_RC == 130 )); then
+        _dash_status "$T_DIM" "${G_DIAM} ${name}: launch cancelled (Ctrl+C)."
+    elif (( DASH_RC == 0 )); then
+        # El estado es del perfil entero, ya que pueden quedar otras sesiones vivas.
+        after="$(_dash_session_state "$p")"
         case "$after" in
             detached)
-                _dash_status "$T_WARN" "${G_DOT} ${name} detached: your programs keep running. Press its key again to reconnect." ;;
-            attached)
-                _dash_status "$T_WARN" "${G_DOT} ${name} is still attached in another terminal (not taken over). Its programs keep running." ;;
+                _dash_status "$T_WARN" "${G_DOT} ${name} has a detached session. Press S to reconnect." ;;
+            attached|multiple)
+                _dash_status "$T_DIM" "${G_DOT} ${name} has running sessions. Press S to view them." ;;
             none)
-                if (( DASH_RC == 130 )) && [[ "$before" == "none" ]]; then
-                    _dash_status "$T_DIM" "${G_DIAM} ${name}: start cancelled (Ctrl+C)."
-                else
-                    _dash_status "$T_DIM" "${G_DIAM} ${name} session ended (exit). A new one starts the next time."
-                fi ;;
+                _dash_status "$T_DIM" "${G_DIAM} ${name} session ended (exit)." ;;
             *)  _dash_status "$T_BAD" "${G_BAD} ${name}: could not read the session state (tmux error)." ;;
         esac
     else
@@ -581,32 +572,42 @@ _dash_run_help() {
 
 # --- SESSIONS: estado y reconexión (sin menús anidados de más de un nivel) --------
 _dash_sessions() {
-    local -a profs=() items=()
-    local p st desc choice n
+    local -a items=() profiles=() targets=()
+    local p row choice n desc
     while :; do
-        mapfile -t profs < <(sess_profiles)
-        items=()
-        for p in "${profs[@]}"; do
-            items+=("$(
-                sess_load_profile "$p" >/dev/null 2>&1 || { printf '%s|invalid profile' "$p"; exit 0; }
-                sess_query "$GOD_SOCKET" "$GOD_SESSION" 0 >/dev/null 2>&1
+        items=() profiles=() targets=()
+        while IFS= read -r p; do
+            sess_load_profile "$p" >/dev/null 2>&1 || continue
+            desc=""
+            if ! sess_snapshot; then
+                desc="tmux error: $S_ERR"
+            elif (( ${#S_ROWS[@]} == 0 )); then
+                desc="no session"
+            fi
+            if [[ -n "$desc" ]]; then
+                items+=("$P_NAME|$desc")
+                profiles+=("$p")
+                targets+=("")
+                continue
+            fi
+            for row in "${S_ROWS[@]}"; do
+                sess_read_row "$row"
                 case "$S_STATE" in
-                    attached) printf '%s|attached (%s window(s)) in another terminal: Enter joins it' "$P_NAME" "$S_WINDOWS" ;;
-                    detached) printf '%s|detached (%s window(s)): Enter reconnects' "$P_NAME" "$S_WINDOWS" ;;
-                    error)    printf '%s|tmux error: %s' "$P_NAME" "$S_ERR" ;;
-                    *)        printf '%s|no session' "$P_NAME" ;;
+                    attached) desc="attached ($S_WINDOWS window(s)): Enter joins it" ;;
+                    detached) desc="detached ($S_WINDOWS window(s)): Enter reconnects" ;;
                 esac
-            )")
-        done
+                items+=("$S_NAME|$desc")
+                profiles+=("$p")
+                targets+=("$S_NAME")
+            done
+        done < <(sess_profiles)
         items+=("Full list|urb sessions: sockets, panes and clients" "Back|Return to the dashboard")
-        n=${#profs[@]}
-        ui_menu "SESSIONS" "Reconnect only: 'urb sessions kill <profile>' ends one" "${items[@]}" || break
+        n=${#profiles[@]}
+        ui_menu "SESSIONS" "Select a session to reconnect" "${items[@]}" || break
         choice=$UI_CHOICE
         if (( choice < n )); then
-            p="${profs[choice]}"
-            st="$(_dash_session_state "$p")"
-            if [[ "$st" == "attached" || "$st" == "detached" ]]; then
-                _dash_tmux_profile "$p" attach
+            if [[ -n "${targets[choice]}" ]]; then
+                _dash_tmux_profile "${profiles[choice]}" attach "${targets[choice]}"
                 return 0
             fi
             desc="${items[choice]#*|}"

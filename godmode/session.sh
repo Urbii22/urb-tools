@@ -82,43 +82,70 @@ sess_tmux_bin() {
 
 sess_socket_path() { printf '%s/tmux-%s/%s' "${TMUX_TMPDIR:-/tmp}" "$(id -u)" "$1"; }
 
-# sess_query SOCKET SESIÓN [con_paneles] → estado del perfil (solo lectura)
-#   S_STATE   attached | detached | none | error
-#   S_WINDOWS S_PANES S_CLIENTS S_CREATED   (cuando hay sesión)
-#   S_ERR     texto del error de comunicación con tmux (S_STATE=error)
-sess_query() {
-    local sock="$1" sess="$2" panes="${3:-0}" bin out rc line name w a c
-    S_STATE="none" S_WINDOWS=0 S_PANES=0 S_CLIENTS=0 S_CREATED="" S_ERR=""
+# Una consulta por perfil. Conserva las sesiones de nombre fijo de versiones anteriores.
+sess_snapshot() {
+    local bin out row name suffix
+    S_ROWS=() S_ERR=""
     if ! bin="$(sess_tmux_bin)"; then S_STATE="error"; S_ERR="tmux is not installed"; return 1; fi
     # Sin fichero de socket no hay servidor: no se llama a tmux
-    [[ -e "$(sess_socket_path "$sock")" ]] || return 0
-    out="$("$bin" -L "$sock" list-sessions -F '#{session_name}|#{session_windows}|#{session_attached}|#{session_created}' 2>&1)"; rc=$?
-    if (( rc != 0 )); then
+    [[ -e "$(sess_socket_path "$GOD_SOCKET")" ]] || return 0
+    if ! out="$("$bin" -L "$GOD_SOCKET" list-sessions -F '#{session_name}|#{session_windows}|#{session_attached}|#{session_created}' 2>&1)"; then
         case "$out" in
             *"no server running"*|*"error connecting"*"No such file"*|*"Connection refused"*)
                 return 0 ;;   # socket huérfano: el servidor ya no existe
             *)  S_STATE="error"; S_ERR="${out%%$'\n'*}"; return 1 ;;
         esac
     fi
-    while IFS='|' read -r name w a c; do
-        [[ "$name" == "$sess" ]] || continue
-        S_WINDOWS="$w" S_CLIENTS="$a" S_CREATED="$c"
-        if (( a > 0 )); then S_STATE="attached"; else S_STATE="detached"; fi
+    while IFS= read -r row; do
+        name="${row%%|*}"
+        suffix="${name#"$GOD_SESSION"-}"
+        if [[ "$name" == "$GOD_SESSION" || ( "$name" != "$suffix" && "$suffix" =~ ^[0-9]+-[0-9]{5}$ ) ]]; then
+            S_ROWS+=("$row")
+        fi
     done <<<"$out"
-    if [[ "$S_STATE" != "none" ]] && (( panes )); then
-        out="$("$bin" -L "$sock" list-panes -s -t "=${sess}" -F x 2>&1)" && S_PANES="$(grep -c . <<<"$out")"
-    fi
-    return 0
 }
 
-# sess_count_alive → número de perfiles con sesión activa (attached o detached)
+sess_read_row() {
+    local row="$1" panes="${2:-0}" bin out
+    IFS='|' read -r S_NAME S_WINDOWS S_CLIENTS S_CREATED <<<"$row"
+    if (( S_CLIENTS > 0 )); then S_STATE="attached"; else S_STATE="detached"; fi
+    S_PANES=0
+    if (( panes )); then
+        S_PANES="-"
+        if bin="$(sess_tmux_bin)" && out="$("$bin" -L "$GOD_SOCKET" list-panes -s -t "=${S_NAME}" -F x 2>/dev/null)"; then
+            S_PANES="$(grep -c . <<<"$out")"
+        fi
+    fi
+}
+
+# Sin nombre, se elige automáticamente solo cuando hay una única sesión.
+sess_query() {
+    local name="${1:-}" panes="${2:-0}" row
+    S_STATE="none"
+    sess_snapshot || return 1
+    if [[ -z "$name" ]] && (( ${#S_ROWS[@]} > 1 )); then
+        S_STATE="multiple"
+        return 0
+    fi
+    for row in "${S_ROWS[@]}"; do
+        [[ -z "$name" || "${row%%|*}" == "$name" ]] || continue
+        sess_read_row "$row" "$panes"
+        return 0
+    done
+}
+
+sess_choice_error() {
+    msg_err "Multiple ${P_NAME} sessions. Specify a session name."
+    msg_dim "    Run 'urb sessions' to see their names."
+}
+
+# sess_count_alive → total de sesiones activas (attached o detached)
 sess_count_alive() {
-    local p n=0 sock sess
+    local p n=0
     while IFS= read -r p; do
         sess_load_profile "$p" 2>/dev/null || continue
-        sock="$GOD_SOCKET"; sess="$GOD_SESSION"
-        sess_query "$sock" "$sess" 0 || continue
-        [[ "$S_STATE" == attached || "$S_STATE" == detached ]] && n=$(( n + 1 ))
+        sess_snapshot || continue
+        n=$(( n + ${#S_ROWS[@]} ))
     done < <(sess_profiles)
     printf '%d' "$n"
 }

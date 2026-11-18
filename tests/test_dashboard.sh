@@ -201,7 +201,7 @@ _k_god_detach() {
     printf 'q'; sleep 1
 }
 _k_god_reconnect_exit() {
-    sleep 2; printf 'g'; sleep 3.5
+    sleep 2; printf 's'; sleep 1.5; printf 'j\r'; sleep 3.5
     tmux -L "$URB_GOD_SOCKET" display -p -t god '#{session_created}' >"$HOME/created2" 2>/dev/null
     tmux -L "$URB_GOD_SOCKET" list-sessions 2>/dev/null | wc -l >"$HOME/nsess"
     printf '\003'; sleep 1                      # Ctrl+C: termina el sleep de la sesión
@@ -213,7 +213,7 @@ test_dashboard_god_detach_keeps_processes_reconnect_and_exit() {
     _dsockets
     ( cd "$HOME" && _dpty "$HOME/g1.txt" "--no-color --no-anim" _k_god_detach )
     local cap; cap="$(cat "$HOME/g1.txt")"
-    assert_contains "$cap" "God Mode detached: your programs keep running"
+    assert_contains "$cap" "God Mode has a detached session"
     assert_contains "$cap" "URB Terminal closed"
     assert_eq "$(_drc "$HOME/g1.txt")" "0"
     # Volver al dashboard por detach NO termina la sesión ni sus procesos
@@ -251,7 +251,7 @@ test_dashboard_red_from_menu_is_isolated_from_god() {
     mkdir -p "$HOME/labs"
     ( cd "$HOME" && _dpty "$HOME/r.txt" "--no-color --no-anim" _k_red_detach )
     assert_eq "$(cat "$HOME/r1" 2>/dev/null)" "red|RED"
-    assert_contains "$(cat "$HOME/r.txt")" "URB Red detached"
+    assert_contains "$(cat "$HOME/r.txt")" "URB Red has a detached session"
     tmux -L "$URB_RED_SOCKET" has-session -t red 2>/dev/null || _fail "RED session should survive the detach"
     [[ -e "$(_dsock_path "$URB_GOD_SOCKET")" ]] && _fail "opening RED must not start a GOD server"
     # El gestor global la ve igual que siempre
@@ -262,7 +262,7 @@ test_dashboard_red_from_menu_is_isolated_from_god() {
 
 _k_sessions_attach() {
     sleep 2; printf 's'; sleep 1.5
-    printf 'j\r'; sleep 3.5                    # BLUE, después GOD: reconectar
+    printf 'jj\r'; sleep 3.5                   # BLUE, god (anterior), GOD recién creada
     printf 'echo joined > "$HOME/s1"\r'; sleep 1
     printf '\002d'; sleep 2.5
     printf 'q'; sleep 1
@@ -272,39 +272,55 @@ test_dashboard_sessions_reconnects_existing_session() {
     _dhave || return 0
     _dsockets
     ( cd "$HOME" && _dpty "$HOME/pre.txt" "--no-color god --no-anim" _k_detach_only )
-    tmux -L "$URB_GOD_SOCKET" has-session -t god 2>/dev/null || { _fail "setup: no GOD session"; return 1; }
+    local session
+    session="$(tmux -L "$URB_GOD_SOCKET" list-sessions -F '#{session_name}')" || { _fail "setup: no GOD session"; return 1; }
+    tmux -L "$URB_GOD_SOCKET" new-session -d -s god 'sleep 60'
     ( cd "$HOME" && _dpty "$HOME/s.txt" "--no-color --no-anim" _k_sessions_attach )
     local cap; cap="$(cat "$HOME/s.txt")"
     assert_contains "$cap" "detached (1 window(s)): Enter reconnects"
     assert_eq "$(cat "$HOME/s1" 2>/dev/null)" "joined"
-    assert_contains "$cap" "God Mode detached"
+    assert_contains "$cap" "God Mode has running sessions"
     assert_eq "$(_drc "$HOME/s.txt")" "0"
-    tmux -L "$URB_GOD_SOCKET" has-session -t god 2>/dev/null || _fail "SESSIONS must never end a session"
+    assert_status 0 tmux -L "$URB_GOD_SOCKET" has-session -t "=god"
+    assert_status 0 tmux -L "$URB_GOD_SOCKET" has-session -t "=$session"
     _dcleanup
 }
 
-# Una sesión conectada en otra terminal: se comparte (como `urb god`), no se roba
-_k_long_attach() { sleep 11; printf '\002d'; sleep 2; }
-_k_join_shared() {
+test_sessions_menu_scrolls_when_sessions_exceed_terminal_height() {
+    load_urb
+    local -a items=()
+    local i out
+    for (( i=1; i<=14; i++ )); do
+        items+=("red-123-$(printf '%05d' "$i")|detached")
+    done
+    out="$(UI_COLS=80 UI_ROWS=12 _ui_menu_draw SESSIONS "Select a session" 13 "${items[@]}")"
+    assert_contains "$out" "[14] red-123-00014"
+    assert_not_contains "$out" "red-123-00001"
+    assert_not_contains "$out" "Terminal too small"
+}
+
+# Una terminal GOD desde el menú obtiene otra sesión aunque ya haya una conectada.
+_k_long_attach() { sleep 13; printf '\002d'; sleep 2; }
+_k_start_parallel() {
     sleep 4; printf 'g'; sleep 3
-    tmux -L "$URB_GOD_SOCKET" list-clients -t god 2>/dev/null | wc -l >"$HOME/clients"
-    printf '\002d'; sleep 2.5
+    tmux -L "$URB_GOD_SOCKET" list-sessions -F '#{session_attached}' >"$HOME/clients"
+    printf 'exit\r'; sleep 2.5
     printf 'q'; sleep 1
 }
-test_dashboard_shared_session_is_not_taken_over() {
+test_dashboard_starts_a_separate_session_while_god_is_attached() {
     _dhave || return 0
     _dsockets
     ( cd "$HOME" && TERM=xterm-256color timeout 60 script -qfec "stty rows 30 cols 100; $URB_HOME/bin/urb --no-color god --no-anim; echo URB_RC=\$?" "$HOME/a.txt" \
         < <(_k_long_attach) >/dev/null 2>&1 ) &
     local apid=$!
-    ( cd "$HOME" && _dpty "$HOME/b.txt" "--no-color --no-anim" _k_join_shared )
+    ( cd "$HOME" && _dpty "$HOME/b.txt" "--no-color --no-anim" _k_start_parallel )
     wait "$apid"
-    assert_eq "$(tr -d ' ' <"$HOME/clients")" "2"
-    assert_contains "$(cat "$HOME/b.txt")" "still attached in another terminal"
+    assert_eq "$(cat "$HOME/clients")" $'1\n1'
+    assert_contains "$(cat "$HOME/b.txt")" "God Mode has running sessions"
     # La otra terminal siguió conectada hasta su propio detach
     assert_contains "$(cat "$HOME/a.txt")" "Detached from God Mode"
     assert_eq "$(_drc "$HOME/a.txt")" "0"
-    tmux -L "$URB_GOD_SOCKET" has-session -t god 2>/dev/null || _fail "session must survive"
+    assert_eq "$(tmux -L "$URB_GOD_SOCKET" list-sessions -F '#{session_attached}')" "0"
     _dcleanup
 }
 

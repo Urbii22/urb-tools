@@ -148,11 +148,11 @@ test_god_session_lifecycle_and_isolation() {
 
     # Desconectado: la sesión sigue viva en SU socket
     out="$("$urb" --no-color god --status)"
-    assert_contains "$out" "God Mode session running"
+    assert_contains "$out" "god      detached"
     tmux -L "$sock" has-session -t god 2>/dev/null || _fail "god session should survive a detach"
 
     # Reconectar y salir con exit: la sesión termina y la terminal se restaura
-    _god_pty "$HOME/god2.txt" "$urb --no-color god --no-anim" _keys_exit
+    _god_pty "$HOME/god2.txt" "$urb --no-color sessions attach god --no-anim" _keys_exit
     assert_contains "$(cat "$HOME/god2.txt")" "God Mode off"
     tmux -L "$sock" has-session 2>/dev/null && _fail "god session should end after exit"
     [[ "$(tail -c 300 "$HOME/god2.txt")" == *$'\e[?1049l'* ]] || _fail "alternate screen not restored at the end"
@@ -180,7 +180,7 @@ test_god_kill_only_affects_god_server() {
     # Sin confirmación interactiva (no hay tty) y con procesos: no se mata sin --yes
     out="$(setsid -w "$urb" --no-color god --kill </dev/null 2>&1)"
     assert_contains "$out" "Programs still running"
-    assert_eq "$("$urb" --no-color god --status | grep -c 'session running')" "1"
+    assert_eq "$("$urb" --no-color god --status | grep -c 'god      detached')" "1"
     out="$("$urb" --no-color god --kill --yes 2>&1)"
     assert_eq "$?" 0 "$out"
     assert_contains "$out" "God Mode session ended"
@@ -259,7 +259,7 @@ test_god_mouse_wheel_scrolls_output_not_history() {
     URB_GOD_SOCKET="$(_god_socket)"; export URB_GOD_SOCKET
     ( cd "$HOME" && _god_pty "$HOME/wh.txt" "$urb --no-color god --no-anim" _keys_wheel )
     cap="$(cat "$HOME/wh.txt")"
-    assert_eq "$(tmux -L "$URB_GOD_SOCKET" show -gv mouse 2>/dev/null)" "on"
+    assert_eq "$(tmux -L "$URB_GOD_SOCKET" show -t god: -v mouse 2>/dev/null)" "on"
     assert_contains "$cap" $'\e[?1000h'                        # tmux pidió el ratón al terminal
     # En la shell: la rueda entra en el modo de desplazamiento y sube por la salida
     local m; m="$(cat "$HOME/w_shell" 2>/dev/null)"
@@ -278,10 +278,10 @@ test_god_mouse_setting_applies_on_reconnect() {
     local urb="$URB_HOME/bin/urb"
     URB_GOD_SOCKET="$(_god_socket)"; export URB_GOD_SOCKET
     ( cd "$HOME" && _god_pty "$HOME/m1.txt" "$urb --no-color god --no-anim" _keys_detach_q )
-    assert_eq "$(tmux -L "$URB_GOD_SOCKET" show -gv mouse 2>/dev/null)" "on"
+    assert_eq "$(tmux -L "$URB_GOD_SOCKET" show -t god: -v mouse 2>/dev/null)" "on"
     "$urb" config set GOD_MOUSE 0 >/dev/null
-    ( cd "$HOME" && _god_pty "$HOME/m2.txt" "$urb --no-color god --no-anim" _keys_detach_q )
-    assert_eq "$(tmux -L "$URB_GOD_SOCKET" show -gv mouse 2>/dev/null)" "off"
+    ( cd "$HOME" && _god_pty "$HOME/m2.txt" "$urb --no-color sessions attach god --no-anim" _keys_detach_q )
+    assert_eq "$(tmux -L "$URB_GOD_SOCKET" show -t god: -v mouse 2>/dev/null)" "off"
     assert_contains "$(cat "$HOME/m2.txt")" "Detached from God Mode"
     _tmux_cleanup "$URB_GOD_SOCKET"
 }

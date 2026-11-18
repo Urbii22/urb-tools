@@ -57,7 +57,8 @@ test_sessions_help_and_arguments() {
     assert_status 2 _URB sessions attach
     assert_status 2 _URB sessions kill
     assert_status 2 _URB sessions kill red --bogus
-    assert_status 2 _URB sessions kill red god
+    assert_status 2 _URB sessions kill red god extra
+    assert_status 2 _URB sessions attach red --bogus
 }
 
 test_sessions_queries_never_create_sessions() {
@@ -142,6 +143,76 @@ test_sessions_kill_always_confirms_and_isolates_profiles() {
     _cleanup_sockets
 }
 
+_keys_parallel_first() {
+    sleep 2.5
+    printf 'export URB_TEST_SESSION=first; pwd > "$HOME/first.cwd"\r'
+    local i
+    for (( i=0; i<100; i++ )); do
+        [[ -f "$HOME/second.detached" ]] && break
+        sleep 0.1
+    done
+    printf 'echo "$URB_TEST_SESSION" > "$HOME/first.state"\r'
+    sleep 0.5
+    printf '\002d'
+    sleep 0.5
+}
+
+_keys_parallel_second() {
+    sleep 2.5
+    tmux -L "$socket" list-sessions -F '#{session_attached}' >"$HOME/parallel.clients"
+    printf 'echo "${URB_TEST_SESSION:-clean}" > "$HOME/second.state"; pwd > "$HOME/second.cwd"\r'
+    sleep 0.5
+    printf '\002d'
+    sleep 0.5
+}
+
+_check_parallel_profile_sessions() {
+    _have_deps || return 0
+    _unique_sockets
+    trap _cleanup_sockets EXIT
+    local profile="$1" socket_var="URB_${1^^}_SOCKET" socket
+    local first second pid i cmd="$URB_HOME/bin/urb --no-color"
+    socket="${!socket_var}"
+    mkdir "$HOME/first" "$HOME/second"
+    ( cd "$HOME/first" && _pty "$HOME/first.pty" "$cmd $profile --no-anim" _keys_parallel_first ) &
+    pid=$!
+    for (( i=0; i<50; i++ )); do
+        [[ -s "$HOME/first.cwd" ]] && break
+        sleep 0.1
+    done
+    first="$(tmux -L "$socket" list-sessions -F '#{session_name}')"
+    ( cd "$HOME/second" && _pty "$HOME/second.pty" "$cmd $profile --no-anim" _keys_parallel_second )
+    assert_eq "$(tmux -L "$socket" list-sessions -F '#{session_attached}' | sort)" $'0\n1'
+    touch "$HOME/second.detached"
+    wait "$pid"
+
+    assert_eq "$(cat "$HOME/parallel.clients")" $'1\n1'
+    assert_eq "$(cat "$HOME/first.state")" first
+    assert_eq "$(cat "$HOME/second.state")" clean
+    assert_eq "$(cat "$HOME/first.cwd")" "$HOME/first"
+    assert_eq "$(cat "$HOME/second.cwd")" "$HOME/second"
+    second="$(tmux -L "$socket" list-sessions -F '#{session_name}' | grep -Fxv "$first")"
+    assert_contains "$(_URB sessions)" "$first"
+    assert_contains "$(_URB sessions info "$profile" "$second")" "$HOME/second"
+    assert_status 2 _URB sessions attach "$profile"
+    assert_status 2 _URB "$profile" --kill --yes
+    assert_status 1 _URB sessions kill "$profile" "${second%-*}" --yes
+    assert_status 0 _URB "$profile" --kill "$second" --yes
+    assert_status 1 _URB sessions attach "$profile" kill
+    assert_eq "$(tmux -L "$socket" list-sessions -F '#{session_name}')" "$first"
+    _pty "$HOME/resume.pty" "$cmd sessions attach $profile $first --no-anim" _keys_exit
+    assert_contains "$(cat "$HOME/resume.pty")" "its last shell exited"
+    assert_status 1 tmux -L "$socket" has-session
+}
+
+test_parallel_red_sessions_start_clean_and_can_be_managed_individually() {
+    _check_parallel_profile_sessions red
+}
+
+test_parallel_blue_sessions_start_clean_and_can_be_managed_individually() {
+    _check_parallel_profile_sessions blue
+}
+
 test_lifecycle_detach_exit_ctrl_d_external_and_server_loss() {
     _have_deps || return 0
     _unique_sockets
@@ -152,7 +223,7 @@ test_lifecycle_detach_exit_ctrl_d_external_and_server_loss() {
     assert_eq "$(_rc_of "$HOME/l1.txt")" "0"
     tmux -L "$URB_RED_SOCKET" has-session -t red 2>/dev/null || _fail "detach lost the session"
     # 2) exit → la sesión termina normalmente
-    _pty "$HOME/l2.txt" "$URB_HOME/bin/urb --no-color red --no-anim" _keys_exit
+    _pty "$HOME/l2.txt" "$URB_HOME/bin/urb --no-color sessions attach red --no-anim" _keys_exit
     cap="$(cat "$HOME/l2.txt")"
     assert_contains "$cap" "URB Red off"
     assert_contains "$cap" "its last shell exited"
@@ -211,8 +282,9 @@ test_hud_session_indicator_is_cached_and_hidden_when_narrow() {
     if _have_deps; then
         rm -f "$XDG_RUNTIME_DIR/urb-god-$(id -u)/sessions"
         tmux -L "$URB_RED_SOCKET" new-session -d -s red 'sleep 60'
+        tmux -L "$URB_RED_SOCKET" new-session -d -s red-123-00001 'sleep 60'
         out="$(bash "$hud" "$HOME" 160 red)"
-        assert_contains "$out" "SES #[fg=colour255]1"
+        assert_contains "$out" "SES #[fg=colour255]2"
         local calls; calls="$(wc -l <"$log")"
         # Segunda llamada dentro de los 10 s: sale de la caché, sin consultar tmux
         bash "$hud" "$HOME" 160 god >/dev/null

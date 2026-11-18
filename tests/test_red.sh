@@ -311,8 +311,8 @@ test_red_and_god_sessions_are_isolated() {
     tmux -L "$rs" has-session -t red 2>/dev/null || _fail "red session missing"
     assert_contains "$(tmux -L "$rs" show -gv status-left 2>/dev/null)" "URB RED"
     assert_contains "$(tmux -L "$gs" show -gv status-left 2>/dev/null)" "URB GOD"
-    assert_contains "$(_URB red --session)" "URB Red session running"
-    assert_contains "$(_URB god --status)" "God Mode session running"
+    assert_contains "$(_URB red --session)" "red      detached"
+    assert_contains "$(_URB god --status)" "god      detached"
     # Terminar RED no afecta a GOD
     assert_status 0 _URB red --kill --yes
     tmux -L "$rs" has-session 2>/dev/null && _fail "red session still alive"

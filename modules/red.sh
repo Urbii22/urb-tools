@@ -24,10 +24,11 @@ _red_help_section() {
     case "$1" in
         shell) cat <<EOF
 ${C_BOLD}SHELL${C_RESET}
-  urb red                         Open URB Red (real zsh + tmux, red HUD and prompt)
+  urb red                         Open a fresh URB Red session (real zsh + tmux)
   urb red --no-anim               Open without animations
-  urb red --kill [--yes]          End the URB Red session (God Mode is not affected)
-  urb red --session               Show whether a URB Red session is running
+  urb red --kill [session] [--yes] End one URB Red session
+  urb red --session               List URB Red sessions
+  urb sessions attach red [session] Reconnect to a running session
   In RED: scan = recon; recon, services, scans, findings, notes, target,
   lab, report and status run the corresponding 'urb red' command directly.
   Existing commands take precedence; on conflict use 'urb red <command>'.
@@ -257,7 +258,7 @@ red_target() {
 
 # --- Estado --------------------------------------------------------------------------------
 red_status() {
-    local t vpn n latest sess="not running" sock="${URB_RED_SOCKET:-urb-red}"
+    local t vpn n latest sess
     msg_section "URB RED STATUS"
     if lab_resolve "$PWD"; then
         _red_kv "Lab" "$(lab_name "$LAB_ROOT")  ${T_DIM}($(_red_lab_source_txt))${C_RESET}"
@@ -284,9 +285,13 @@ red_status() {
     fi
     vpn="$(sys_vpn_detect 2>/dev/null | head -n 1)"
     if [[ -n "$vpn" ]]; then _red_kv "VPN" "${T_OK}${G_DOT} ${vpn}${C_RESET}"; else _red_kv "VPN" "${T_DIM}${G_RING} inactive${C_RESET}"; fi
-    if [[ "$sock" =~ ^[A-Za-z0-9_-]{1,64}$ ]] && has_cmd tmux && tmux -L "$sock" has-session -t "=red" 2>/dev/null; then
-        sess="running (urb red to reconnect)"
-    fi
+    sess="$(
+        if sess_load_profile red && sess_snapshot && (( ${#S_ROWS[@]} > 0 )); then
+            printf '%s running (urb sessions to list)' "${#S_ROWS[@]}"
+        else
+            printf '%s' "not running"
+        fi
+    )"
     _red_kv "Session" "$sess"
     return 0
 }
@@ -486,6 +491,8 @@ if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
     source "${URB_HOME}/modules/findings.sh" || exit 1
     # shellcheck source=inventory.sh
     source "${URB_HOME}/modules/inventory.sh" || exit 1
+    # shellcheck source=../godmode/session.sh
+    source "${URB_HOME}/godmode/session.sh" || exit 1
     red_main "$@"
     exit $?
 fi

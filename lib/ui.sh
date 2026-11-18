@@ -406,16 +406,20 @@ ui_menu() {
 _ui_menu_draw() {
     local title="$1" sub="$2" sel="$3"; shift 3
     local -a items=("$@")
-    local n=${#items[@]} i w h r0 c0 inner label desc txt line maxl=0 lw
+    local n=${#items[@]} i w h r0 c0 inner label desc txt line maxl=0 lw key
+    local visible first=0 row jump
     for i in "${items[@]}"; do label="${i%%|*}"; (( ${#label} > maxl )) && maxl=${#label}; done
     lw=$(( maxl + 2 ))
     w=$(( UI_COLS - 4 )); (( w > 76 )) && w=76
-    h=$(( n + 4 ))
     ui_buf_begin
-    if (( UI_COLS < 40 || UI_ROWS < h + 2 )); then
+    if (( UI_COLS < 40 || UI_ROWS < 7 )); then
         ui_at 1 1 "${T_WARN}Terminal too small (${UI_COLS}x${UI_ROWS}). Resize or press q.${C_RESET}"
         ui_flush; return 0
     fi
+    visible=$(( UI_ROWS - 6 ))
+    (( visible > n )) && visible=$n
+    (( sel >= visible )) && first=$(( sel - visible + 1 ))
+    h=$(( visible + 4 ))
     r0=$(( (UI_ROWS - h - 2) / 2 + 1 )); (( r0 < 1 )) && r0=1
     c0=$(( (UI_COLS - w) / 2 + 1 ))
     inner=$(( w - 4 ))
@@ -423,19 +427,22 @@ _ui_menu_draw() {
     ui_fit line "${G_DIAM} URB ${G_ARROW} ${title}" "$w"
     ui_at "$r0" "$c0" "${T_TITLE}${line}${C_RESET}"
     ui_box $(( r0 + 1 )) "$c0" "$w" "$h" "$sub"
-    for (( i = 0; i < n; i++ )); do
+    for (( i = first; i < first + visible; i++ )); do
         label="${items[i]%%|*}"
         desc="${items[i]#*|}"
         [[ "$desc" == "${items[i]}" ]] && desc=""
         ui_fit txt "$label" "$lw"
-        ui_fit line " [$(( i + 1 ))] ${txt}${desc}" $(( inner - 2 ))
+        printf -v key ' [%d] ' "$(( i + 1 ))"
+        ui_fit line "${key}${txt}${desc}" $(( inner - 2 ))
+        row=$(( r0 + 3 + i - first ))
         if (( i == sel )); then
-            ui_at $(( r0 + 3 + i )) $(( c0 + 2 )) "${T_SEL}${G_ARROW}${line} ${C_RESET}"
+            ui_at "$row" $(( c0 + 2 )) "${T_SEL}${G_ARROW}${line} ${C_RESET}"
         else
-            ui_at $(( r0 + 3 + i )) $(( c0 + 2 )) " ${T_KEY}${line:0:4}${C_RESET}${T_VALUE}${line:4}${C_RESET} "
+            ui_at "$row" $(( c0 + 2 )) " ${T_KEY}${key}${C_RESET}${T_VALUE}${line:${#key}}${C_RESET} "
         fi
     done
-    ui_fit line "${G_UP}${G_DOWN} move  ${G_ENTER} select  1-${n} jump  q/Esc back" "$w"
+    jump=$(( n < 9 ? n : 9 ))
+    ui_fit line "${G_UP}${G_DOWN} move  ${G_ENTER} select  1-${jump} jump  q/Esc back" "$w"
     ui_at $(( r0 + h + 1 )) "$c0" "${T_DIM}${line}${C_RESET}"
     ui_flush
 }

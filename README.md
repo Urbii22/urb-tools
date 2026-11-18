@@ -138,16 +138,16 @@ SYSTEM                  [6] SETTINGS  [S] SESSIONS  [H] HELP  [Q] EXIT
 | `Ctrl+L` | Refrescar datos |
 | `q` / `Esc` | Salir |
 
-**Ir y volver.** GOD y RED se abren con los mismos lanzadores que `urb god` y `urb red` (sesión tmux propia de cada perfil, reconexión si ya existe, mismo directorio, laboratorio y objetivo). NORMAL SHELL abre **tu Zsh de siempre** (`~/.zshrc`, alias, historial, autocompletado) sin tema ni HUD de URB. Al salir vuelves al menú:
+**Ir y volver.** GOD y RED se abren con los mismos lanzadores que `urb god` y `urb red`. Cada apertura inicia una sesión independiente en el directorio actual, aunque el mismo modo ya esté abierto en otra terminal. NORMAL SHELL abre **tu Zsh de siempre** (`~/.zshrc`, alias, historial, autocompletado) sin tema ni HUD de URB.
 
 | Desde | Haces | Resultado |
 |---|---|---|
-| GOD / RED | `Ctrl+B d` | Vuelves al menú y la sesión **sigue viva** (marcada `● detached`); su tecla reconecta |
+| GOD / RED | `Ctrl+B d` | Vuelves al menú y la sesión **sigue viva**. Pulsa `S` para retomarla |
 | GOD / RED | `exit` | La sesión termina y vuelves al menú |
 | Zsh normal | `exit` | Vuelves al menú |
 | Menú | `q` | Vuelves a tu terminal (las sesiones desconectadas siguen vivas: `urb sessions`) |
 
-Si GOD/RED ya está abierto en otra terminal, el dashboard se une como un cliente más (no la desconecta). Dentro de otro tmux, GOD/RED no se anidan y el menú explica por qué.
+Dentro de otro tmux, GOD/RED no se anidan y el menú explica por qué.
 
 **Modo de inicio:** `urb config set START_MODE dashboard|god|red` (por defecto `dashboard`). Con `god`/`red`, `urb` entra directamente en ese entorno; `urb dashboard` sigue abriendo el menú.
 
@@ -229,10 +229,10 @@ God Mode utiliza una paleta amarilla y dorada; RED y BLUE conservan sus colores 
 God Mode convierte la ventana de terminal en la que estás (QTerminal u otra) en un espacio de trabajo avanzado. Sigue siendo **tu Zsh real**: comandos, autocompletado, historial, tuberías, programas interactivos y herramientas de Kali funcionan igual que siempre. Por debajo usa tmux, con un HUD compacto en la barra de estado y el prompt URB.
 
 ```bash
-urb god                # activar (o reconectar con una sesión que siga viva)
+urb god                # abrir una sesión nueva
 urb god --no-anim      # sin animaciones
-urb god --status       # ¿hay una sesión de God Mode abierta?
-urb god --kill         # terminar la sesión (pregunta si hay programas en marcha)
+urb god --status       # listar sesiones de God Mode
+urb sessions attach god # retomar la única sesión de God Mode
 urb god --check        # comprobar dependencias
 urb god --help
 ```
@@ -249,14 +249,14 @@ Requisitos: `tmux` (≥ 3.0) y `zsh`. Si faltan, `urb god` te dice cómo instala
 | Acción | Qué pasa con tus programas | Cómo volver |
 |---|---|---|
 | `exit` en la shell | Se cierra la shell. Si era la última, la sesión termina y vuelves a tu terminal normal. | `urb god` abre una sesión nueva |
-| `Ctrl+B d` (desconectar) | **Siguen ejecutándose** en segundo plano | `urb god` reconecta con ellos |
-| Cerrar la ventana de QTerminal | Igual que desconectar: siguen vivos | `urb god` |
-| `urb god --kill` | Se terminan la sesión y todo lo que corre en ella (pide confirmación si hay programas activos) | — |
+| `Ctrl+B d` (desconectar) | **Siguen ejecutándose** en segundo plano | `urb sessions attach god [sesión]` o `S` en el dashboard |
+| Cerrar la ventana de QTerminal | Los programas siguen ejecutándose | `urb sessions attach god [sesión]` |
+| `urb god --kill [sesión]` | Termina la sesión elegida. Pide confirmación si hay programas activos | — |
 
 Dentro funcionan los atajos estándar de tmux: `Ctrl+B c` abre una ventana nueva y `Ctrl+B %` / `Ctrl+B "` dividen el panel, siempre en el directorio actual.
 
 **Aislamiento y seguridad:**
-- Usa un **servidor tmux propio** (socket `urb-god`) con su propia configuración (`godmode/tmux.conf`). Nunca lee ni modifica tu `~/.tmux.conf`, y tus sesiones tmux no se ven afectadas: `urb god --kill` solo cierra la suya.
+- Usa un **servidor tmux propio** (socket `urb-god`) con su propia configuración (`godmode/tmux.conf`). Cada sesión tiene su propio nombre, sus ventanas y sus paneles.
 - Zsh arranca con un `ZDOTDIR` temporal (`godmode/zsh/`) que **carga tu `~/.zshenv` y tu `~/.zshrc` sin modificarlos** y después aplica el prompt URB. No se toca ni `.zshrc` ni `.bashrc`.
 - Si ya estás dentro de tmux, `urb god` no se anida: te pide que te desconectes primero.
 - También se abre desde el dashboard (`urb` → `G`): al desconectarte (`Ctrl+B d`) o salir (`exit`) vuelves al menú en lugar de a la terminal.
@@ -283,7 +283,7 @@ URB Red es el primer **perfil especializado** sobre la infraestructura de God Mo
 - **Tema rojo** y etiqueta `URB RED`.
 - **HUD:** laboratorio activo, objetivo, VPN e IP; en ventanas anchas, también CPU y RAM.
 - **Prompt:** `╭─[RED]─[htb-lame ▸ 10.10.10.3]─[ruta]─[git]`.
-- **Sesión tmux propia** (socket `urb-red`, sesión `red`): abrir, desconectar o terminar RED no afecta a `urb god`, y al revés.
+- **Servidor tmux propio** (socket `urb-red`), con una sesión independiente por apertura.
 
 Dentro de RED, Ctrl+C, `exit`, `Ctrl+B d`, `--kill` y la reconexión funcionan igual que en God Mode.
 
@@ -303,7 +303,7 @@ urb red recon initial
 urb red recon initial --target 10.10.10.30     # solo para esta ejecución; no cambia el guardado
 
 # Shell
-urb red                    # abrir URB Red (--no-anim, --kill [--yes], --session)
+urb red                    # sesión nueva de URB Red (--no-anim, --kill [sesión] [--yes], --session)
 ```
 
 **Qué laboratorio se usa.** Primero el del **directorio actual**: si estás dentro de un laboratorio (hay un `.urb-lab` en el directorio o en uno de sus padres), se usa ese. Si no, el **seleccionado** con `urb red lab use`. Antes de cualquier operación de red, `recon initial` muestra qué laboratorio y qué objetivo va a usar y de dónde salen.
@@ -432,13 +432,13 @@ urb red services refresh                       # reconstruir el inventario
 
 ## Sesiones (`urb sessions`)
 
-Un gestor global de las sesiones de God Mode y URB Red. Funciona desde cualquier terminal, sin activar ninguna de ellas.
+Un gestor global de las sesiones de GOD, RED y BLUE. Funciona desde cualquier terminal.
 
 ```bash
-urb sessions                    # tabla: perfil, estado, ventanas, paneles, clientes, socket
-urb sessions info red           # detalle: paneles (comando y directorio), clientes, hora de creación
-urb sessions attach red         # reconectar (solo si existe: nunca crea una sesión)
-urb sessions kill red           # terminar (pide confirmación SIEMPRE; --yes para no preguntar)
+urb sessions                          # listar los nombres y estados
+urb sessions info red red-1234-01234   # ver paneles, directorios y clientes
+urb sessions attach red red-1234-01234 # retomar esta sesión
+urb sessions kill red red-1234-01234   # terminar esta sesión tras confirmar
 ```
 
 | Estado | Significado |
@@ -449,8 +449,8 @@ urb sessions kill red           # terminar (pide confirmación SIEMPRE; --yes pa
 | `error` | No se ha podido consultar a tmux (no está instalado, permisos…); se muestra el mensaje |
 
 - Consultar (`urb sessions`, `info`) **nunca crea sesiones ni arranca servidores**.
-- Cada perfil usa su propio socket (`urb-god`, `urb-red`): `kill red` solo cierra RED, y nada afecta a tus propias sesiones tmux.
-- Desde el dashboard: `urb` → `S` muestra el estado y reconecta (nunca termina sesiones; para eso, `urb sessions kill`).
+- Si el perfil tiene una sola sesión, puedes omitir el nombre en `info`, `attach` y `kill`. Las sesiones anteriores a este cambio conservan su nombre (`god`, `red` o `blue`).
+- Desde el dashboard, pulsa `S` y elige la sesión que quieras retomar.
 
 **Cómo termina una conexión.** Al volver a tu terminal, `urb god` y `urb red` te dicen qué ha pasado:
 - `Detached from …`: te has desconectado (`Ctrl+B d` o has cerrado la ventana). La sesión sigue viva.

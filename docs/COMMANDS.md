@@ -163,27 +163,26 @@ Abre URB Terminal, el **centro de control**: un dashboard con datos reales (host
 
 | Sección | Tecla | Opción | Qué hace |
 |---|---|---|---|
-| TERMINAL ENVIRONMENTS | `G` | GOD MODE | Lo mismo que `urb god`: reconecta la sesión si existe o crea una nueva en el directorio actual |
-| | `R` | RED MODE | Lo mismo que `urb red`: laboratorio, objetivo y HUD rojo persistentes |
-| | `B` | BLUE MODE | `COMING SOON`: aparece atenuado y no se puede ejecutar |
+| TERMINAL ENVIRONMENTS | `G` | GOD MODE | Abre una sesión nueva en el directorio actual, igual que `urb god` |
+| | `R` | RED MODE | Abre una sesión nueva con el HUD de RED |
+| | `B` | BLUE MODE | Abre una sesión nueva con el HUD de BLUE |
 | | `Z` | NORMAL SHELL | Tu Zsh de siempre (`zsh -i`, tu `~/.zshrc`, alias, historial), sin tema ni HUD de URB |
 | CYBERSECURITY TOOLS | `1`–`5` | RECON, NETWORK, MONITOR, LOGS, CTF | Los módulos de siempre, con los mismos números |
 | SYSTEM | `6` | SETTINGS | Configuración |
-| | `S` | SESSIONS | Estado de GOD/RED y reconexión (como `urb sessions attach`; nunca termina sesiones) |
+| | `S` | SESSIONS | Lista las sesiones y permite elegir cuál retomar |
 | | `H` | HELP | `urb help` (con `less`) |
 | | `Q` / `Esc` | EXIT | Cerrar el dashboard y volver a la terminal |
 
-- **Otras teclas:** `↑↓`/`j k` mover (BLUE se salta) · `Enter`/`→` abrir · `Ctrl+L` refrescar datos. Las letras valen en mayúscula o minúscula.
+- **Otras teclas:** `↑↓`/`j k` mover · `Enter`/`→` abrir · `Ctrl+L` refrescar datos. Las letras valen en mayúscula o minúscula.
 - **Volver al dashboard:** al salir de lo que abriste vuelves al menú, no se cierra la terminal.
 
   | Desde | Acción | Resultado |
   |---|---|---|
-  | GOD / RED | `Ctrl+B d` (detach) | Vuelves al menú; la sesión y sus programas **siguen en marcha** (el menú marca `● detached`). Su tecla reconecta la misma sesión. |
+  | GOD / RED | `Ctrl+B d` (detach) | Vuelves al menú y los programas siguen en marcha. Pulsa `S` para retomar la sesión. |
   | GOD / RED | `exit` / `Ctrl+D` en la última shell | La sesión termina; vuelves al menú. La próxima vez se crea una nueva. |
   | GOD / RED | error al arrancar (falta tmux, servidor caído…) | Se muestra el error, *Press any key to return to the URB dashboard* y vuelves al menú. |
   | NORMAL SHELL | `exit` | Vuelves al menú. |
 
-- **Sesiones conectadas en otra terminal:** si GOD/RED ya está abierto en otra ventana, el dashboard se une como un cliente más (igual que `urb god`): no la desconecta ni se la apropia. Al salir, el menú indica `attached` (sigue conectada allí).
 - **Dentro de tmux:** si `urb` se ejecuta dentro de otra sesión tmux, GOD/RED no se abren (no se anidan) y el menú explica por qué; la Zsh normal y las herramientas siguen disponibles.
 - **Terminal:** antes de abrir GOD, RED, la Zsh o la ayuda, el dashboard sale por completo de su pantalla (pantalla principal, cursor visible, `stty` original). Al volver, tras GOD/RED desactiva los modos de informe de ratón que tmux pudiera haber dejado, restaura el `stty` y descarta teclas pendientes. `Ctrl+C`, `Ctrl+\` y `Ctrl+Z` en un programa abierto llegan a ese programa; el dashboard sigue vivo. En el propio menú, `Ctrl+C` sale (código `130`) restaurando la terminal y `Ctrl+Z` se ignora.
 - **Tamaño:** mínimo 50×12. Alineado arriba a la izquierda; con poco alto se ocultan primero los paneles de información y el menú se desplaza (indicadores `↑ more` / `↓ more`) en lugar de recortar opciones. Desde 100 columnas, menú y paneles lado a lado.
@@ -226,17 +225,17 @@ Convierte la ventana de terminal en un espacio de trabajo avanzado: una **Zsh re
 
 | Comando | Efecto |
 |---|---|
-| `urb god` | Activa God Mode o reconecta con la sesión existente |
+| `urb god` | Abre una sesión nueva de God Mode en el directorio actual |
 | `urb god --no-anim` | Sin animaciones |
-| `urb god --status` | ¿Hay una sesión abierta? Muestra sus paneles |
-| `urb god --kill [--yes]` | Termina la sesión (pregunta si hay programas en marcha) |
+| `urb god --status` | Lista las sesiones de God Mode |
+| `urb god --kill [sesión] [--yes]` | Termina una sesión (pregunta si hay programas en marcha) |
 | `urb god --check` | Comprueba `tmux` (≥ 3.0) y `zsh` |
 | `urb god --help` | Ayuda |
 
 - **Requisitos:** `tmux` ≥ 3.0 y `zsh`. Sin ellos, el código de salida es `127` y el resto de URB-Tools funciona igual.
 - **Dentro de God Mode:**
   - `exit` cierra la shell. Si era la última, la sesión termina.
-  - `Ctrl+B d` **desconecta**: los programas siguen ejecutándose y `urb god` vuelve a ellos. Cerrar la ventana tiene el mismo efecto.
+  - `Ctrl+B d` **desconecta** y deja los programas en marcha. Retoma la sesión con `urb sessions attach god [sesión]` o con `S` en el dashboard. Cerrar la ventana también desconecta.
   - `Ctrl+B c` abre una ventana nueva, y `Ctrl+B %` / `Ctrl+B "` dividen el panel.
 - **Al salir**, URB dice cómo terminó la conexión: «Detached», «Session ended…» (exit, Ctrl+D o cierre) o «tmux server ended unexpectedly» (código `1`).
 - **Aislamiento:** servidor tmux propio (socket `urb-god`), que nunca lee tu `~/.tmux.conf`. Si ya estás dentro de otro tmux, se niega a anidarse (código `1`).
@@ -304,9 +303,9 @@ Perfil para laboratorios sobre la misma infraestructura de God Mode:
 
 | Comando | Efecto |
 |---|---|
-| `urb red` | Abre URB Red o reconecta |
+| `urb red` | Abre una sesión nueva de URB Red |
 | `urb red --no-anim` | Sin animaciones |
-| `urb red --kill [--yes]` | Termina la sesión de URB Red (God Mode no se ve afectado) |
+| `urb red --kill [sesión] [--yes]` | Termina la sesión de URB Red elegida |
 | `urb red --session` | Estado de la sesión |
 | `urb red --check` | Dependencias |
 | `urb red status` | Laboratorio (y de dónde sale), ruta, objetivo, escaneos (último completo), resumen de hallazgos, VPN y sesión |
@@ -486,7 +485,7 @@ Añade una nota con marca temporal al hallazgo (hasta 1000 caracteres, de una l�
 ## 10. Sesiones tmux
 
 ### `urb sessions [list]`
-- **Muestra:** una tabla de los perfiles (`god`, `red`) con su estado, ventanas, paneles, clientes y socket.
+- Muestra una fila por sesión de `god`, `red` o `blue`, con nombre, estado, ventanas, paneles, clientes y socket.
 - **Estados:**
   - `attached`: con una terminal conectada.
   - `detached`: en segundo plano; los programas siguen.
@@ -494,10 +493,12 @@ Añade una nota con marca temporal al hallazgo (hasta 1000 caracteres, de una l�
   - `error`: tmux no ha respondido (se muestra el mensaje).
 - **Consultar nunca crea sesiones.**
 
-### `urb sessions info <god|red>` · `urb sessions attach <god|red> [--no-anim]` · `urb sessions kill <god|red> [--yes]`
+### `urb sessions info <perfil> [sesión]` · `urb sessions attach <perfil> [sesión] [--no-anim]` · `urb sessions kill <perfil> [sesión] [--yes]`
+
+- Usa el nombre de la columna `SESSION`. Si el perfil tiene una única sesión, puedes omitir el nombre. Si hay varias, el comando devuelve `2` hasta que indiques una.
 - `info`: muestra la hora de creación, los paneles (comando y directorio) y los clientes conectados.
 - `attach`: **solo reconecta**. Si no hay sesión, devuelve `1` y no crea ninguna.
-- `kill`: pide confirmación **siempre** (salvo `--yes`) y solo cierra la sesión de ese perfil.
+- `kill`: pide confirmación **siempre** (salvo `--yes`) y cierra la sesión elegida.
 
 ---
 

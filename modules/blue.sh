@@ -7,8 +7,9 @@ blue_help() {
     cat <<'EOF'
 urb blue — offline SOC workspace
 
-  urb blue                          Open or reconnect to the BLUE shell
-  urb blue --no-anim | --session | --check | --kill [--yes]
+  urb blue                          Open a fresh BLUE session
+  urb blue --no-anim | --session | --check | --kill [session] [--yes]
+  urb sessions attach blue [session] Reconnect to a running session
   urb blue status                   Workspace, events, alerts and cases
   urb blue workspace new|use <name> Create/select a workspace
   urb blue workspace list|status    List or inspect workspaces

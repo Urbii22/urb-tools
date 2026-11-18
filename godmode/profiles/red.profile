@@ -1,7 +1,7 @@
 # =============================================================================
 #  godmode/profiles/red.profile — URB Red: perfil para laboratorios
-#  Misma infraestructura que God Mode (Zsh real + tmux), con su propia sesión
-#  (socket urb-red), tema rojo y HUD con laboratorio, objetivo y VPN.
+#  Misma infraestructura que God Mode (Zsh real + tmux), con su propio socket
+#  (urb-red), tema rojo y HUD con laboratorio, objetivo y VPN.
 #  Datos CLAVE=valor (se validan al leerlos; nunca se ejecutan).
 # =============================================================================
 PROFILE_NAME=URB Red

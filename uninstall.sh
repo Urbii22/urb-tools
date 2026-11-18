@@ -61,7 +61,7 @@ for _p in "God Mode|${URB_GOD_SOCKET:-urb-god}|urb god" "URB Red|${URB_RED_SOCKE
     if command -v tmux >/dev/null 2>&1 && tmux -L "$_psock" has-session 2>/dev/null; then
         warn "A ${_pname} session is still running. It will NOT be closed: your programs keep running,"
         warn "but its HUD and new windows will stop working once the files are removed."
-        printf '    To end it first:  %s --kill   (or type exit inside it)\n' "$_pcmd"
+        printf '    Use urb sessions to find its name, then %s --kill <session> (or type exit inside it).\n' "$_pcmd"
     fi
 done
 unset _p _pname _psock _pcmd
