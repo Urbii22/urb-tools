@@ -326,7 +326,7 @@ if (( $+functions[compdef] )); then
                     compadd -- shell lab target recon scans services findings notes report context
                 fi ;;
             serve)   compadd -- --port --bind --dir --yes ;;
-            manual)  (( CURRENT == 3 )) && compadd -- commands examples path ;;
+            manual)  (( CURRENT == 3 )) && compadd -- commands examples atajos path ;;
         esac
     }
     compdef _urb_complete urb

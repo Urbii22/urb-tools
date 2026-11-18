@@ -79,7 +79,7 @@ ${C_BOLD}COMMANDS${C_RESET}
   ${T_KEY}layout${C_RESET} [action]      Open your 4-pane QTerminal layout (Claude, BLUE, GOD, RED)
   ${T_KEY}serve${C_RESET} [options]      Local HTTP server for the current directory (python3)
   ${T_KEY}doctor${C_RESET}               Check dependencies and environment
-  ${T_KEY}manual${C_RESET} [examples]    Open the full manual (docs/COMMANDS.md, docs/EXAMPLES.md)
+  ${T_KEY}manual${C_RESET} [examples|atajos] Open the manual, workflows or keyboard shortcuts
   ${T_KEY}help${C_RESET} [command] [section]  Help (e.g. urb help red scans) — also: urb-help
   ${T_KEY}version${C_RESET}              Show version
 
@@ -116,6 +116,7 @@ ${C_BOLD}urb manual${C_RESET} — the full reference manual installed with URB-T
 ${C_BOLD}USAGE${C_RESET}
   urb manual              Open docs/COMMANDS.md (every command, options, defaults, errors)
   urb manual examples     Open docs/EXAMPLES.md (complete workflows)
+  urb manual atajos       Open docs/ATAJOS.md (keyboard shortcuts: QTerminal, tmux, zsh)
   urb manual path         Print where the manual files are
 
 Opens with 'less' in a terminal; otherwise prints the file path.
@@ -128,9 +129,10 @@ urb_manual() {
     case "$which" in
         commands|"") f="${URB_HOME}/docs/COMMANDS.md" ;;
         examples)    f="${URB_HOME}/docs/EXAMPLES.md" ;;
-        path)        printf '%s\n%s\n' "${URB_HOME}/docs/COMMANDS.md" "${URB_HOME}/docs/EXAMPLES.md"; return 0 ;;
+        atajos|keys|shortcuts) f="${URB_HOME}/docs/ATAJOS.md" ;;
+        path)        printf '%s\n' "${URB_HOME}/docs/COMMANDS.md" "${URB_HOME}/docs/EXAMPLES.md" "${URB_HOME}/docs/ATAJOS.md"; return 0 ;;
         -h|--help|help) urb_manual_help; return 0 ;;
-        *) msg_err "Unknown manual: ${which} (use: commands, examples, path)"; return 2 ;;
+        *) msg_err "Unknown manual: ${which} (use: commands, examples, atajos, path)"; return 2 ;;
     esac
     [[ -r "$f" ]] || { msg_err "Manual not found: ${f} (reinstall URB-Tools: ./install.sh)"; return 1; }
     if [[ -t 1 ]] && has_cmd less; then

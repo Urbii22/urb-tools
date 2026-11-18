@@ -74,3 +74,12 @@ test_symlinked_launcher_resolves_home() {
     ln -s "$URB_HOME/bin/urb" "$HOME/bin/urb"
     assert_eq "$("$HOME/bin/urb" version)" "URB-Tools 0.1.0"
 }
+
+test_manual_atajos_opens_the_shortcuts_guide() {
+    local out
+    out="$("$URB_HOME/bin/urb" --no-color manual atajos)"
+    assert_eq "$out" "$URB_HOME/docs/ATAJOS.md"
+    assert_contains "$(cat "$out")" "Ctrl+B s"
+    assert_contains "$("$URB_HOME/bin/urb" --no-color manual path)" "docs/ATAJOS.md"
+    assert_contains "$("$URB_HOME/bin/urb" --no-color manual --help)" "urb manual atajos"
+}

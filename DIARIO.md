@@ -490,3 +490,13 @@ tmux -L urb-god kill-server; tmux -L urb-red kill-server; tmux -L urb-blue kill-
 urb god          # arrastra sobre un texto → queda marcado; Ctrl+Shift+V en otra terminal lo pega
 urb layout       # nueva pestaña: claude arriba-izq, BLUE arriba-der, GOD abajo-izq, RED abajo-der
 ```
+
+## 2026-11-18 · Manual de atajos (`urb manual atajos`)
+
+`docs/ATAJOS.md`: atajos de teclado por capas (QTerminal, tmux con lo que añade URB, Zsh), con recetas y una chuleta. Los atajos de QTerminal que cambian entre versiones están marcados con † y hay que confirmarlos en Preferences → Shortcuts.
+
+| Feature | Código | Tests | Instalado | Probado en vivo |
+|---|---|---|---|---|
+| `urb manual atajos` | ✅ | ✅ WSL | — | ⏳ Kali (revisar los † en QTerminal 2.4.0) |
+
+**Para probar en Kali:** `cd ~/urb-tools && git pull && ./install.sh`, luego `urb manual atajos` y probar los atajos marcados con †.
