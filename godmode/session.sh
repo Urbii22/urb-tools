@@ -89,7 +89,7 @@ sess_snapshot() {
     if ! bin="$(sess_tmux_bin)"; then S_STATE="error"; S_ERR="tmux is not installed"; return 1; fi
     # Sin fichero de socket no hay servidor: no se llama a tmux
     [[ -e "$(sess_socket_path "$GOD_SOCKET")" ]] || return 0
-    if ! out="$("$bin" -L "$GOD_SOCKET" list-sessions -F '#{session_name}|#{session_windows}|#{session_attached}|#{session_created}' 2>&1)"; then
+    if ! out="$("$bin" -L "$GOD_SOCKET" list-sessions -F '#{session_name}|#{session_windows}|#{session_attached}|#{session_created}|#{session_activity}|#{pane_current_path}' 2>&1)"; then
         case "$out" in
             *"no server running"*|*"error connecting"*"No such file"*|*"Connection refused"*)
                 return 0 ;;   # socket huérfano: el servidor ya no existe
@@ -107,7 +107,8 @@ sess_snapshot() {
 
 sess_read_row() {
     local row="$1" panes="${2:-0}" bin out
-    IFS='|' read -r S_NAME S_WINDOWS S_CLIENTS S_CREATED <<<"$row"
+    # La ruta va al final: si contiene '|', read la deja entera en S_PATH.
+    IFS='|' read -r S_NAME S_WINDOWS S_CLIENTS S_CREATED S_ACTIVITY S_PATH <<<"$row"
     if (( S_CLIENTS > 0 )); then S_STATE="attached"; else S_STATE="detached"; fi
     S_PANES=0
     if (( panes )); then

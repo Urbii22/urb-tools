@@ -500,6 +500,22 @@ Añade una nota con marca temporal al hallazgo (hasta 1000 caracteres, de una l�
 - `attach`: **solo reconecta**. Si no hay sesión, devuelve `1` y no crea ninguna.
 - `kill`: pide confirmación **siempre** (salvo `--yes`) y cierra la sesión elegida.
 
+### `urb sessions menu` · `Ctrl+B s` · `sessions`
+- Árbol plegable por perfil, con el color de cada uno (GOD dorado, RED rojo, BLUE azul). Se refresca cada 2 s.
+- **Teclas:**
+  - `↑↓` mover.
+  - `Enter` entrar, o plegar el perfil.
+  - `←→` plegar o desplegar.
+  - `n` sesión nueva del perfil.
+  - `x` cerrar, con confirmación `y`.
+  - `r` refrescar, `q` salir.
+- **Dentro de una sesión URB** (`Ctrl+B s` o el comando `sessions`): se abre como ventana flotante (tmux ≥ 3.2).
+  - Mismo perfil: `switch-client`.
+  - Otro perfil: desconecta la actual (sigue viva) y entra en la elegida en la misma terminal.
+- **Fuera de tmux:** `urb sessions menu` y la tecla `S` del dashboard. `Enter` reconecta y `n` abre el perfil.
+- Si ya tienes una función o alias `sessions`, se respeta y se avisa al abrir la shell. Usa `Ctrl+B s` o `urb sessions menu`.
+- `urb sessions popup` es el lanzador interno que usan `Ctrl+B s` y `sessions`.
+
 ---
 
 ## 11. Network, Monitor y Logs

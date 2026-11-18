@@ -162,6 +162,12 @@ if [[ "${URB_PROFILE:-}" == blue ]]; then
     done
     unset _urb_context_name
 fi
+# 'sessions' en cualquier perfil: el menú de sesiones (como Ctrl+B s)
+if (( $+aliases[sessions] || $+galiases[sessions] )) || whence -w sessions >/dev/null 2>&1; then
+    print -u2 -r -- "URB ${URB_PROFILE:u}: 'sessions' already exists; use 'urb sessions menu' or Ctrl+B s instead."
+else
+    sessions() { "${URB_HOME}/bin/urb" sessions popup "" "" "$PWD"; }
+fi
 unfunction _urb_register_context_command
 
 # --- 4. Autocompletado de 'urb' (GOD y RED) -------------------------------------------------
@@ -303,7 +309,7 @@ if (( $+functions[compdef] )); then
                         fi ;;
                 esac ;;
             sessions)
-                if (( CURRENT == 3 )); then compadd -- list info attach kill
+                if (( CURRENT == 3 )); then compadd -- list info attach kill menu
                 elif (( CURRENT == 4 )); then compadd -- god red blue
                 fi ;;
             god)     compadd -- --no-anim --status --kill --check --help ;;

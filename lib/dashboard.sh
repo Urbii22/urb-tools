@@ -570,56 +570,16 @@ _dash_run_help() {
     fi
 }
 
-# --- SESSIONS: estado y reconexión (sin menús anidados de más de un nivel) --------
+# --- SESSIONS: el mismo menú que urb sessions menu y Ctrl+B s -----------------------
+# Cerrar se hace dentro del menú; entrar y abrir pasan por _dash_tmux_profile para
+# volver al dashboard con el estado real de la sesión.
 _dash_sessions() {
-    local -a items=() profiles=() targets=()
-    local p row choice n desc
-    while :; do
-        items=() profiles=() targets=()
-        while IFS= read -r p; do
-            sess_load_profile "$p" >/dev/null 2>&1 || continue
-            desc=""
-            if ! sess_snapshot; then
-                desc="tmux error: $S_ERR"
-            elif (( ${#S_ROWS[@]} == 0 )); then
-                desc="no session"
-            fi
-            if [[ -n "$desc" ]]; then
-                items+=("$P_NAME|$desc")
-                profiles+=("$p")
-                targets+=("")
-                continue
-            fi
-            for row in "${S_ROWS[@]}"; do
-                sess_read_row "$row"
-                case "$S_STATE" in
-                    attached) desc="attached ($S_WINDOWS window(s)): Enter joins it" ;;
-                    detached) desc="detached ($S_WINDOWS window(s)): Enter reconnects" ;;
-                esac
-                items+=("$S_NAME|$desc")
-                profiles+=("$p")
-                targets+=("$S_NAME")
-            done
-        done < <(sess_profiles)
-        items+=("Full list|urb sessions: sockets, panes and clients" "Back|Return to the dashboard")
-        n=${#profiles[@]}
-        ui_menu "SESSIONS" "Select a session to reconnect" "${items[@]}" || break
-        choice=$UI_CHOICE
-        if (( choice < n )); then
-            if [[ -n "${targets[choice]}" ]]; then
-                _dash_tmux_profile "${profiles[choice]}" attach "${targets[choice]}"
-                return 0
-            fi
-            desc="${items[choice]#*|}"
-            msg_info "${items[choice]%%|*}: ${desc}. Start it from the dashboard."
-            ui_pause
-        elif (( choice == n )); then
-            sessions_list
-            ui_pause
-        else
-            break
-        fi
-    done
+    SM_CUR_SOCK="" SM_CUR_SESS=""
+    _sm_run
+    case "$SM_ACT" in
+        attach) _dash_tmux_profile "$SM_P" attach "$SM_N"; return 0 ;;
+        new)    _dash_tmux_profile "$SM_P" start; return 0 ;;
+    esac
     ui_resume
 }
 

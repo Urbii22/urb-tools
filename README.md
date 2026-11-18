@@ -253,7 +253,7 @@ Requisitos: `tmux` (≥ 3.0) y `zsh`. Si faltan, `urb god` te dice cómo instala
 | Cerrar la ventana de QTerminal | Los programas siguen ejecutándose | `urb sessions attach god [sesión]` |
 | `urb god --kill [sesión]` | Termina la sesión elegida. Pide confirmación si hay programas activos | — |
 
-Dentro funcionan los atajos estándar de tmux: `Ctrl+B c` abre una ventana nueva y `Ctrl+B %` / `Ctrl+B "` dividen el panel, siempre en el directorio actual.
+Dentro funcionan los atajos estándar de tmux: `Ctrl+B c` abre una ventana nueva y `Ctrl+B %` / `Ctrl+B "` dividen el panel, siempre en el directorio actual. `Ctrl+B s` (o el comando `sessions`) abre el [menú de sesiones](#menú-de-sesiones-ctrlb-s--sessions--urb-sessions-menu) para cambiar, abrir o cerrar sesiones de cualquier perfil.
 
 **Aislamiento y seguridad:**
 - Usa un **servidor tmux propio** (socket `urb-god`) con su propia configuración (`godmode/tmux.conf`). Cada sesión tiene su propio nombre, sus ventanas y sus paneles.
@@ -451,6 +451,34 @@ urb sessions kill red red-1234-01234   # terminar esta sesión tras confirmar
 - Consultar (`urb sessions`, `info`) **nunca crea sesiones ni arranca servidores**.
 - Si el perfil tiene una sola sesión, puedes omitir el nombre en `info`, `attach` y `kill`. Las sesiones anteriores a este cambio conservan su nombre (`god`, `red` o `blue`).
 - Desde el dashboard, pulsa `S` y elige la sesión que quieras retomar.
+
+### Menú de sesiones (`Ctrl+B s` · `sessions` · `urb sessions menu`)
+
+Un árbol plegable con todas las sesiones abiertas, agrupadas por perfil y con su color (GOD dorado, RED rojo, BLUE azul). La sesión en la que estás aparece como `current`.
+
+```
+▾ BLUE (0)  URB Blue · no sessions, n opens one
+▾ GOD (1)  God Mode
+   ● god-4121-08812       detached    1w    5m  ~/proyectos
+▾ RED (2)  URB Red
+   ● red-3990-17345       current     2w    0s  ~/labs/htb-lame
+   ● red-4410-00321       detached    1w    1h  ~/labs/htb-jerry
+```
+
+| Tecla | Acción |
+|---|---|
+| `↑` `↓` | Moverse |
+| `Enter` | Entrar en la sesión (o plegar/desplegar el perfil) |
+| `←` `→` | Plegar / desplegar el perfil |
+| `n` | Abrir una sesión nueva del perfil seleccionado |
+| `x` | Cerrar la sesión seleccionada (pide `y`) |
+| `r` / `q` | Refrescar (también cada 2 s) / salir |
+
+- **Dentro de GOD/RED/BLUE:** `Ctrl+B s` o el comando `sessions` lo abren en una ventana flotante (tmux ≥ 3.2; con versiones anteriores se abre en la propia shell).
+  - Entre sesiones del mismo perfil el cambio es instantáneo.
+  - Si saltas a otro perfil, la sesión actual se desconecta (sigue viva) y entras en la otra en la misma terminal.
+  - `n` abre la nueva en el directorio del panel actual.
+- **Fuera:** `urb sessions menu` y la tecla `S` del dashboard abren el mismo menú.
 
 **Cómo termina una conexión.** Al volver a tu terminal, `urb god` y `urb red` te dicen qué ha pasado:
 - `Detached from …`: te has desconectado (`Ctrl+B d` o has cerrado la ventana). La sesión sigue viva.

@@ -201,7 +201,7 @@ _k_god_detach() {
     printf 'q'; sleep 1
 }
 _k_god_reconnect_exit() {
-    sleep 2; printf 's'; sleep 1.5; printf 'j\r'; sleep 3.5
+    sleep 2; printf 's'; sleep 1.5; printf '\r'; sleep 3.5   # el menú abre con la sesión GOD seleccionada
     tmux -L "$URB_GOD_SOCKET" display -p -t god '#{session_created}' >"$HOME/created2" 2>/dev/null
     tmux -L "$URB_GOD_SOCKET" list-sessions 2>/dev/null | wc -l >"$HOME/nsess"
     printf '\003'; sleep 1                      # Ctrl+C: termina el sleep de la sesión
@@ -262,7 +262,7 @@ test_dashboard_red_from_menu_is_isolated_from_god() {
 
 _k_sessions_attach() {
     sleep 2; printf 's'; sleep 1.5
-    printf 'jj\r'; sleep 3.5                   # BLUE, god (anterior), GOD recién creada
+    printf 'j\r'; sleep 3.5                    # árbol: BLUE · GOD · god (seleccionada) · god-… (la anterior)
     printf 'echo joined > "$HOME/s1"\r'; sleep 1
     printf '\002d'; sleep 2.5
     printf 'q'; sleep 1
@@ -277,7 +277,7 @@ test_dashboard_sessions_reconnects_existing_session() {
     tmux -L "$URB_GOD_SOCKET" new-session -d -s god 'sleep 60'
     ( cd "$HOME" && _dpty "$HOME/s.txt" "--no-color --no-anim" _k_sessions_attach )
     local cap; cap="$(cat "$HOME/s.txt")"
-    assert_contains "$cap" "detached (1 window(s)): Enter reconnects"
+    assert_contains "$cap" "GOD (2)"
     assert_eq "$(cat "$HOME/s1" 2>/dev/null)" "joined"
     assert_contains "$cap" "God Mode has running sessions"
     assert_eq "$(_drc "$HOME/s.txt")" "0"

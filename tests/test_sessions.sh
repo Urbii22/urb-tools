@@ -294,3 +294,125 @@ test_hud_session_indicator_is_cached_and_hidden_when_narrow() {
     fi
     _cleanup_sockets
 }
+
+# --- Menú de sesiones (urb sessions menu · Ctrl+B s · S del dashboard) ---------------
+_load_menu() {
+    load_urb
+    # shellcheck source=/dev/null
+    source "$URB_HOME/modules/sessions.sh"
+}
+
+test_sessions_menu_tree_groups_sessions_by_profile_with_colors() {
+    _load_menu
+    TERM=xterm-256color urb_init_colors always
+    ui_init_theme
+    _sm_glyphs
+    SMP=(god red)
+    SMP_TAG["god"]=GOD SMP_TAG["red"]=RED SMP_LONG["god"]="God Mode" SMP_LONG["red"]="URB Red"
+    SMP_SOCK["god"]=s-g SMP_SOCK["red"]=s-r SMP_ERR["god"]="" SMP_ERR["red"]="" SMP_N["god"]=0 SMP_N["red"]=2
+    _sm_profile_color god god
+    _sm_profile_color red red
+    SMS_P=(red red) SMS_N=(red-1-00001 red-2-00002) SMS_ST=(detached attached) SMS_W=(1 3)
+    SMS_PATH=("$HOME/labs/box" /tmp) SMS_ACT=(100 100)
+    SM_NOW=160 SM_CUR_SOCK=s-r SM_CUR_SESS=red-2-00002
+    _sm_rows
+    assert_eq "${#SM_ROW_T[@]}" 4
+    SM_SEL=2
+    local out
+    out="$(UI_COLS=100 UI_ROWS=20 _sm_draw "")"
+    assert_contains "$out" "GOD (0)"
+    assert_contains "$out" "no sessions, n opens one"
+    assert_contains "$out" "RED (2)"
+    assert_contains "$out" "red-1-00001"
+    assert_contains "$out" "~/labs/box"
+    assert_contains "$out" "current"
+    assert_contains "$out" "1m"
+    assert_contains "$out" $'\e[38;5;196m'     # sesiones y cabecera RED en rojo
+    assert_contains "$out" $'48;5;196m'        # selección con el color del perfil
+    assert_contains "$out" $'\e[38;5;220m'     # GOD en dorado
+    # Plegar RED conserva la selección en su cabecera
+    SM_FOLD["red"]=1
+    _sm_reload 0
+    assert_eq "${#SM_ROW_T[@]}" 2
+    assert_eq "$SM_SEL" 1
+    out="$(UI_COLS=100 UI_ROWS=20 _sm_draw "")"
+    assert_not_contains "$out" "red-1-00001"
+}
+
+test_sessions_menu_needs_a_terminal() {
+    assert_status 1 _URB sessions menu </dev/null
+    assert_status 2 _URB sessions menu --bogus
+    assert_contains "$(_URB sessions --help)" "sessions menu"
+}
+
+# Filas: BLUE · GOD · god (seleccionada) · RED · red-1 → dos veces abajo
+_keys_menu_close_first() { sleep 2; printf '\e[B'; sleep 0.3; printf '\e[B'; sleep 0.3; printf 'x'; sleep 0.5; printf 'y'; sleep 1; printf 'q'; sleep 0.5; }
+
+test_sessions_menu_closes_the_selected_session_after_confirming() {
+    _have_deps || return 0
+    _unique_sockets
+    trap _cleanup_sockets EXIT
+    tmux -L "$URB_RED_SOCKET" new-session -d -s red-1-00001 'sleep 60'
+    tmux -L "$URB_RED_SOCKET" new-session -d -s red-2-00002 'sleep 60'
+    tmux -L "$URB_GOD_SOCKET" new-session -d -s god 'sleep 60'
+    _pty "$HOME/menu.pty" "$URB_HOME/bin/urb sessions menu" _keys_menu_close_first
+    assert_contains "$(cat "$HOME/menu.pty")" "RED (2)"
+    assert_contains "$(cat "$HOME/menu.pty")" "Close RED session"
+    assert_eq "$(_rc_of "$HOME/menu.pty")" 0
+    assert_eq "$(tmux -L "$URB_RED_SOCKET" list-sessions -F '#{session_name}')" red-2-00002
+    tmux -L "$URB_GOD_SOCKET" has-session -t =god || _fail "GOD session affected"
+}
+
+# Desde dentro de red-1: cambiar a red-2 (mismo perfil) y después a GOD (otro servidor)
+_keys_menu_switch() {
+    sleep 2
+    printf '"$URB_HOME/bin/urb" --no-color sessions menu\r'; sleep 2
+    printf '\e[B'; sleep 0.5; printf '\r'; sleep 1.5
+    tmux -L "$URB_RED_SOCKET" list-clients -F '#{client_session}' >"$HOME/after-switch"
+    printf '"$URB_HOME/bin/urb" --no-color sessions menu\r'; sleep 2
+    printf '\e[A\e[A\e[A'; sleep 0.5; printf '\r'; sleep 3
+    tmux -L "$URB_GOD_SOCKET" list-clients -F '#{client_session}' >"$HOME/after-jump"
+    tmux -L "$URB_RED_SOCKET" list-clients -F '#{client_session}' >"$HOME/red-after-jump"
+    printf '\002d'; sleep 1.5
+}
+
+test_sessions_menu_switches_inside_a_profile_and_jumps_across_profiles() {
+    _have_deps || return 0
+    _unique_sockets
+    trap _cleanup_sockets EXIT
+    local s
+    for s in red-1-00001 red-2-00002; do
+        tmux -L "$URB_RED_SOCKET" new-session -d -s "$s" -x 110 -y 28 "env URB_HOME='$URB_HOME' bash --norc -i"
+    done
+    tmux -L "$URB_GOD_SOCKET" new-session -d -s god-1-00001 -x 110 -y 28 'bash --norc -i'
+    _pty "$HOME/switch.pty" "tmux -L $URB_RED_SOCKET attach -t =red-1-00001" _keys_menu_switch
+    assert_eq "$(cat "$HOME/after-switch")" red-2-00002
+    assert_eq "$(cat "$HOME/after-jump")" god-1-00001
+    assert_eq "$(cat "$HOME/red-after-jump")" ""
+    # Cambiar de sesión nunca termina ninguna
+    assert_eq "$(tmux -L "$URB_RED_SOCKET" list-sessions -F '#{session_name}' | sort | tr '\n' ' ')" "red-1-00001 red-2-00002 "
+}
+
+# Ctrl+B s y 'sessions' abren el menú flotante dentro de RED; q lo cierra sin tocar nada
+_keys_popup() {
+    sleep 3
+    printf '\002s'; sleep 2.5
+    tmux -L "$URB_RED_SOCKET" list-sessions -F '#{session_name}' >"$HOME/popup.sessions"
+    printf 'q'; sleep 1
+    printf 'sessions\r'; sleep 2.5
+    printf 'q'; sleep 1
+    printf '\002d'; sleep 1.5
+}
+
+test_sessions_popup_opens_from_ctrl_b_s_and_the_sessions_command() {
+    _have_deps || return 0
+    _unique_sockets
+    trap _cleanup_sockets EXIT
+    _pty "$HOME/popup.pty" "$URB_HOME/bin/urb --no-color red --no-anim" _keys_popup
+    local out
+    out="$(cat "$HOME/popup.pty")"
+    assert_contains "$out" "URB SESSIONS"
+    assert_contains "$out" "RED (1)"
+    assert_eq "$(wc -l <"$HOME/popup.sessions")" 1
+    assert_status 0 tmux -L "$URB_RED_SOCKET" has-session
+}

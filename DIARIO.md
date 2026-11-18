@@ -438,3 +438,33 @@ Markdown se crean con nombres nuevos y mantienen el `report.md` manual.
 
 Workspace SOC offline con importaciones transaccionales SQLite, procedencia de
 fuentes y una regla 4625. El perfil utiliza su propio socket y preserva RED/GOD.
+
+## 2026-11-18 · Menú de sesiones (Ctrl+B s · `sessions` · `urb sessions menu`)
+
+Árbol plegable por perfil (GOD dorado, RED rojo, BLUE azul) con todas las sesiones abiertas.
+Enter entra, `n` abre una nueva, `x` cierra (con `y`), ←/→ pliegan y se refresca cada 2 s.
+Dentro de una sesión URB se abre como popup de tmux:
+- **Mismo perfil:** se cambia con `switch-client`.
+- **Otro perfil:** `detach-client -E` y se entra en la otra sesión; la anterior sigue viva.
+
+El `S` del dashboard usa el mismo menú.
+
+| Feature | Código | Tests | Instalado | Probado en vivo |
+|---|---|---|---|---|
+| Menú de sesiones (árbol, colores, cerrar) | ✅ | ✅ WSL tmux 3.6 (pty) | — | ⏳ Kali |
+| Ctrl+B s / `sessions` (popup) | ✅ | ✅ WSL tmux 3.6 (pty) | — | ⏳ Kali |
+| Cambio mismo perfil y salto entre perfiles | ✅ | ✅ WSL tmux 3.6 (pty) | — | ⏳ Kali |
+| `S` del dashboard con el menú nuevo | ✅ | ✅ WSL | — | ⏳ Kali |
+
+**Para probar en Kali:**
+
+```bash
+cd ~/urb-tools && git pull && ./install.sh
+urb red          # Ctrl+B d
+urb red          # segunda RED; Ctrl+B d
+urb god          # dentro: Ctrl+B s → árbol con GOD (1) y RED (2) en sus colores
+                 # ↓ a una RED + Enter → entras en RED; Ctrl+B s → Enter en otra RED (cambio instantáneo)
+                 # escribe 'sessions' → mismo menú; x + y sobre una RED → se cierra
+                 # n sobre BLUE → abre BLUE en el directorio actual
+urb              # S → mismo menú fuera de tmux
+```
