@@ -24,7 +24,7 @@ ${C_BOLD}USAGE${C_RESET}
   urb sessions menu                                 Interactive menu: enter, switch, open or close
                                                     (inside GOD/RED/BLUE: Ctrl+B s or 'sessions')
 
-  Profiles: $(sess_profiles | tr '\n' ' ')
+  Profiles: $(sess_profiles | paste -sd' ')
   When a profile has multiple sessions, specify the session name from the list.
 
 ${C_BOLD}STATES${C_RESET}
@@ -301,12 +301,15 @@ _sm_age() {
 _sm_draw() {
     local msg="$1" n=${#SM_ROW_T[@]} w h r0 c0 inner visible first=0 k row line txt p i col st age path fold
     w=$(( UI_COLS - 2 )); (( w > 100 )) && w=100
+    # Si cambia el número de filas, la caja centrada se mueve: borrar el marco anterior
+    visible=$(( UI_ROWS - 6 )); (( visible > n )) && visible=$n
+    (( n != ${SM_LAST_N:--1} )) && UI_NEED_CLEAR=1
+    SM_LAST_N=$n
     ui_buf_begin
     if (( UI_COLS < 40 || UI_ROWS < 8 )); then
         ui_at 1 1 "${T_WARN}Terminal too small (${UI_COLS}x${UI_ROWS}). Resize or press q.${C_RESET}"
         ui_flush; return 0
     fi
-    visible=$(( UI_ROWS - 6 )); (( visible > n )) && visible=$n
     (( SM_SEL >= visible )) && first=$(( SM_SEL - visible + 1 ))
     h=$(( visible + 4 ))
     r0=$(( (UI_ROWS - h - 2) / 2 + 1 )); (( r0 < 1 )) && r0=1

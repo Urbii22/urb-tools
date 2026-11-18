@@ -209,8 +209,8 @@ urb config set START_MODE red         # 'urb' entra directamente en RED (como 'u
 - **Error:** con un tema inexistente devuelve el código `2` y la lista de temas.
 
 ### `urb manual`
-- **Sintaxis:** `urb manual [commands|examples|path]`
-- **Efecto:** abre este manual (o `EXAMPLES.md`) con `less`. Si no hay terminal o falta `less`, muestra la ruta del fichero. `path` imprime las dos rutas.
+- **Sintaxis:** `urb manual [commands|examples|atajos|path]` (`keys` y `shortcuts` son alias de `atajos`)
+- **Efecto:** abre este manual, `EXAMPLES.md` o `ATAJOS.md` (atajos de teclado de QTerminal, tmux y Zsh) con `less`. Si no hay terminal o falta `less`, muestra la ruta del fichero. `path` imprime las tres rutas.
 - **Alias:** `urb man`.
 
 ### `urb version`

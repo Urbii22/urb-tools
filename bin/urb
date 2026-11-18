@@ -79,8 +79,8 @@ ${C_BOLD}COMMANDS${C_RESET}
   ${T_KEY}layout${C_RESET} [action]      Open your 4-pane QTerminal layout (Claude, BLUE, GOD, RED)
   ${T_KEY}serve${C_RESET} [options]      Local HTTP server for the current directory (python3)
   ${T_KEY}doctor${C_RESET}               Check dependencies and environment
-  ${T_KEY}manual${C_RESET} [examples|atajos] Open the manual, workflows or keyboard shortcuts
-  ${T_KEY}help${C_RESET} [command] [section]  Help (e.g. urb help red scans) — also: urb-help
+  ${T_KEY}manual${C_RESET} [which]       Manual: (none) commands · examples · atajos (keyboard shortcuts)
+  ${T_KEY}help${C_RESET} [cmd] [section] Help (e.g. urb help red scans) — also: urb-help
   ${T_KEY}version${C_RESET}              Show version
 
 ${C_BOLD}DASHBOARD${C_RESET} (urb)
@@ -123,7 +123,7 @@ Opens with 'less' in a terminal; otherwise prints the file path.
 EOF
 }
 
-# urb manual [commands|examples|path]
+# urb manual [commands|examples|atajos|path]
 urb_manual() {
     local which="${1:-commands}" f
     case "$which" in

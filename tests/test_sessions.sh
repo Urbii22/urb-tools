@@ -448,3 +448,22 @@ test_god_copies_selection_to_the_desktop_clipboard() {
     assert_eq "$(cat "$HOME/clip.txt" 2>/dev/null)" "COPIAME"
     assert_eq "$(cat "$HOME/copy.mode")" "1" "(la selección sigue en pantalla tras copiar)"
 }
+
+# Ctrl+B s en una carpeta con comillas y ';' abre el menú y no ejecuta nada
+_keys_popup_quotes() {
+    sleep 3
+    printf '\002s'; sleep 2.5
+    printf 'q'; sleep 1
+    printf '\002d'; sleep 1.5
+}
+
+test_sessions_popup_is_safe_with_quotes_in_the_folder_name() {
+    _have_deps || return 0
+    _unique_sockets
+    trap _cleanup_sockets EXIT
+    local d="$HOME/it's a';touch \$HOME/pwned;'b"
+    mkdir -p "$d"
+    _pty "$HOME/q.pty" "cd $(printf '%q' "$d") && $URB_HOME/bin/urb --no-color red --no-anim" _keys_popup_quotes
+    assert_contains "$(cat "$HOME/q.pty")" "URB SESSIONS"
+    [[ ! -e "$HOME/pwned" ]] || _fail "a command in the folder name was executed"
+}

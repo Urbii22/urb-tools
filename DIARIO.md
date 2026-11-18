@@ -500,3 +500,15 @@ urb layout       # nueva pestaña: claude arriba-izq, BLUE arriba-der, GOD abajo
 | `urb manual atajos` | ✅ | ✅ WSL | — | ⏳ Kali (revisar los † en QTerminal 2.4.0) |
 
 **Para probar en Kali:** `cd ~/urb-tools && git pull && ./install.sh`, luego `urb manual atajos` y probar los atajos marcados con †.
+
+## 2026-11-18 · Ronda de QA con 5 agentes (WSL)
+
+Probados a fondo: menú de sesiones, portapapeles, `urb layout`, CLI/dashboard/docs e instalador. Arreglado:
+- **Alta:** `Ctrl+B s` en una carpeta con `'` o `;` en el nombre fallaba y podía ejecutar comandos → el bind usa `#{q:…}`.
+- **Media:** `urb layout`: errores `bad array subscript` y `getActiveWindow` sin usar; layout.conf ilegible abría paneles vacíos; carpetas con espacios (ahora entre comillas dobles); detección de QTerminal dentro de tmux; `~usuario`; `edit` sin editor.
+- **Media-baja:** el menú de sesiones dejaba restos en pantalla al plegar o cerrar.
+- **Baja:** desinstalador aceptaba opciones desconocidas; textos de ayuda y docs (`urb manual atajos`, tiempo de repetición de tmux, `Esc` en modo vi).
+Sin fallos: portapapeles e instalador.
+Pendientes (baja): caracteres CJK en rutas descuadran el borde del menú; el aviso de cerrar se corta a 40 columnas.
+
+Resultado: `tests/run.sh` → 193/193 · `shellcheck -S warning` → 0.

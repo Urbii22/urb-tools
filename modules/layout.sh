@@ -29,7 +29,8 @@ ${C_BOLD}USAGE${C_RESET}
 ${C_BOLD}LAYOUT FILE${C_RESET} (${LAYOUT_FILE})
   One line per pane:  <position> <folder> <command...>
     position  tl (top left) · tr (top right) · bl (bottom left) · br (bottom right)
-    folder    '.' = where you run 'urb layout'; ~ and absolute paths work
+    folder    '.' = where you run 'urb layout'; ~ and absolute paths work;
+              with spaces, in double quotes: tl "~/my labs" urb red
     command   what to type in the pane ('-' = just a shell)
   Default:
 $(_layout_default | sed 's/^/    /')
@@ -55,15 +56,24 @@ _layout_ensure_file() {
     mkdir -p -- "$(dirname -- "$LAYOUT_FILE")" && _layout_default >"$LAYOUT_FILE"
 }
 
-# _layout_read → rellena LAYOUT_DIR[pos] y LAYOUT_CMD[pos]; avisa de líneas inválidas
+# _layout_read → rellena LAYOUT_DIR[pos] y LAYOUT_CMD[pos]; avisa de líneas inválidas.
+# Una carpeta con espacios va entre comillas dobles: tl "~/mis labs" urb red
 _layout_read() {
     declare -gA LAYOUT_DIR=() LAYOUT_CMD=()
     local line pos dir cmd n=0
+    [[ -r "$LAYOUT_FILE" ]] || { msg_err "Cannot read ${LAYOUT_FILE}."; return 1; }
     while IFS= read -r line || [[ -n "$line" ]]; do
         n=$(( n + 1 ))
         line="${line%%$'\r'}"
         [[ "$line" =~ ^[[:space:]]*(#|$) ]] && continue
-        read -r pos dir cmd <<<"$line"
+        if [[ "$line" =~ ^[[:space:]]*([^[:space:]]+)[[:space:]]+\"([^\"]*)\"[[:space:]]*(.*)$ ]]; then
+            pos="${BASH_REMATCH[1]}" dir="${BASH_REMATCH[2]}" cmd="${BASH_REMATCH[3]}"
+        else
+            read -r pos dir cmd <<<"$line"
+            if [[ "$dir" == \"* ]]; then
+                msg_warn "layout.conf line ${n}: unclosed quote in the folder; line skipped"; continue
+            fi
+        fi
         case "$pos" in
             tl|tr|bl|br) ;;
             *) msg_warn "layout.conf line ${n}: unknown position '${pos}' (use tl, tr, bl, br)"; continue ;;
@@ -81,6 +91,7 @@ declare -gA _LQ_IFACE=()
 # Interfaz propia (no org.freedesktop.*) de un objeto; se cachea por tipo de ruta
 _lq_iface() {
     local kind="${1%/*}"
+    kind="${kind:-root}"
     if [[ -z "${_LQ_IFACE[$kind]:-}" ]]; then
         _LQ_IFACE[$kind]="$(busctl --user introspect "$_LQ_SVC" "$1" 2>/dev/null \
             | awk '$2=="interface" && $1 !~ /^org\.freedesktop\./ {print $1; exit}')"
@@ -103,7 +114,8 @@ _lq_ancestors() {
     for pid in "$$" "$( [[ -n "${TMUX:-}" ]] && tmux display-message -p '#{client_pid}' 2>/dev/null )"; do
         while [[ -n "$pid" && "$pid" != 0 && "$pid" != 1 ]]; do
             printf '%s\n' "$pid"
-            pid="$(awk '{print $4}' "/proc/${pid}/stat" 2>/dev/null)"
+            # El nombre del proceso (campo 2) puede llevar espacios: "(tmux: client)"
+            pid="$(sed 's/^.*) //' "/proc/${pid}/stat" 2>/dev/null | awk '{print $2}')"
         done
     done
 }
@@ -134,6 +146,9 @@ _layout_line() {
         .|"") dir="$base" ;;
         "~")  dir="$HOME" ;;
         "~/"*) dir="${HOME}/${dir#\~/}" ;;
+        "~"*) local u="${dir%%/*}" rest="" h; [[ "$dir" == */* ]] && rest="/${dir#*/}"
+              h="$(getent passwd "${u#\~}" 2>/dev/null | cut -d: -f6)"
+              dir="${h:-${base}/${u}}${rest}" ;;
         /*) ;;
         *) dir="${base}/${dir}" ;;
     esac
@@ -145,7 +160,7 @@ _layout_line() {
 layout_open() {
     command -v busctl >/dev/null 2>&1 || { msg_err "urb layout needs busctl (systemd), which was not found."; return 1; }
     _layout_ensure_file || { msg_err "Could not create ${LAYOUT_FILE}."; return 1; }
-    _layout_read
+    _layout_read || return 1
     if ! _lq_find_service; then
         msg_err "No QTerminal found on D-Bus: urb layout only works in QTerminal."
         return 1
@@ -178,7 +193,11 @@ layout_main() {
     case "${1:-open}" in
         open)  layout_open ;;
         show)  _layout_ensure_file && cat -- "$LAYOUT_FILE" ;;
-        edit)  _layout_ensure_file && "${EDITOR:-nano}" "$LAYOUT_FILE" ;;
+        edit)  _layout_ensure_file || return 1
+               local ed="${VISUAL:-${EDITOR:-}}"
+               [[ -n "$ed" ]] || { has_cmd nano && ed="nano"; } || { has_cmd vi && ed="vi"; }
+               [[ -n "$ed" ]] || { msg_err "No editor found: set \$EDITOR or edit ${LAYOUT_FILE}"; return 1; }
+               $ed "$LAYOUT_FILE" ;;
         reset) mkdir -p -- "$(dirname -- "$LAYOUT_FILE")" && _layout_default >"$LAYOUT_FILE" \
                    && msg_ok "Default layout restored in ${LAYOUT_FILE}" ;;
         help|-h|--help) layout_help ;;

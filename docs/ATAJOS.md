@@ -174,17 +174,17 @@ Sesión GOD (god-1234-56789)          ← lo que ves en Ctrl+B s
 | `Ctrl+B Alt+1` … `Alt+5` | Distribución: columnas iguales · filas iguales · principal arriba · principal izquierda · cuadrícula |
 | `Ctrl+B Ctrl+←↑→↓` | Redimensionar 1 celda (mantén Ctrl y repite la flecha) |
 | `Ctrl+B Alt+←↑→↓` | Redimensionar 5 celdas |
-| `Ctrl+B m` / `Ctrl+B M` | Marcar / desmarcar un panel (para `join-pane`, ver §2.7) |
+| `Ctrl+B m` / `Ctrl+B M` | Marcar / desmarcar un panel (para `join-pane`, ver «La línea de comandos de tmux») |
 | `Ctrl+B t` | Reloj grande (cualquier tecla lo quita) |
 
-Puedes encadenar: tras `Ctrl+B`, las flechas para moverte y redimensionar admiten repetir sin volver a pulsar el prefijo durante un segundo.
+Puedes encadenar: tras `Ctrl+B`, las flechas para moverte y redimensionar admiten repetir sin volver a pulsar el prefijo si pulsas la siguiente en menos de medio segundo.
 
 ### Desplazar, buscar y copiar con teclado (modo copia)
 
 | Tecla | Qué hace |
 |---|---|
 | `Ctrl+B [` | Entrar en modo copia (también `Ctrl+B PgUp`, que además sube una página) |
-| `q` o `Esc` | Salir del modo copia |
+| `q` (y `Esc` en modo emacs) | Salir del modo copia |
 
 Dentro del modo copia hay dos juegos de teclas. tmux usa **vi** si tu `$EDITOR` o `$VISUAL` contiene `vi` y **emacs** en otro caso. Para saber cuál tienes:
 

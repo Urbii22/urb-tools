@@ -101,12 +101,12 @@ urb                       # Dashboard: centro de control (o GOD/RED según START
 urb dashboard             # Siempre el dashboard
 urb help [comando]        # Ayuda general o de un comando (también: urb-help)
 urb help red scans        # Ayuda de una sección
-urb manual                # Manual completo (docs/COMMANDS.md); urb manual examples
+urb manual                # Manual completo (docs/COMMANDS.md); urb manual examples · urb manual atajos
 urb version
 urb doctor                # Dependencias y entorno
 ```
 
-> **Manual de referencia:** [docs/COMMANDS.md](docs/COMMANDS.md) recoge todos los comandos, con sus parámetros, valores por defecto, efectos, ficheros y errores frecuentes. [docs/EXAMPLES.md](docs/EXAMPLES.md) tiene flujos completos. Este README es solo una presentación.
+> **Manual de referencia:** [docs/COMMANDS.md](docs/COMMANDS.md) recoge todos los comandos, con sus parámetros, valores por defecto, efectos, ficheros y errores frecuentes. [docs/EXAMPLES.md](docs/EXAMPLES.md) tiene flujos completos y [docs/ATAJOS.md](docs/ATAJOS.md) los atajos de teclado (QTerminal, tmux, Zsh). Este README es solo una presentación.
 
 ### Command Engine: comandos cortos y combinables
 
@@ -510,7 +510,7 @@ urb-tools/
 ├── bin/urb               # CLI: opciones globales y despacho de comandos
 ├── bin/urb-help          # acceso directo a 'urb help' (sin ayuda propia)
 ├── commands/             # Command Engine: red-recon.spec, serve.spec (datos)
-├── docs/                 # manual: COMMANDS.md (referencia) y EXAMPLES.md (flujos)
+├── docs/                 # manual: COMMANDS.md (referencia), EXAMPLES.md (flujos), ATAJOS.md (teclado)
 ├── lib/
 │   ├── engine.sh         # Command Engine: lee .spec, modificadores, precedencia, ayuda
 │   ├── utils.sh          # colores, mensajes, validación de entradas, config segura

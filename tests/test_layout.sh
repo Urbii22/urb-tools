@@ -84,3 +84,20 @@ test_layout_show_reset_and_help() {
     assert_contains "$(_URB help layout)" "tl (top left)"
     assert_status 2 _URB layout bogus
 }
+
+test_layout_quoted_folders_unreadable_file_and_clean_stderr() {
+    _fake_busctl
+    mkdir -p "$HOME/.config/urb-tools"
+    printf 'tl "~/mis labs" urb red\ntr "sin cerrar x\n' >"$HOME/.config/urb-tools/layout.conf"
+    local out
+    out="$(PATH="$HOME/fakebin:$PATH" _URB layout 2>&1)"
+    assert_not_contains "$out" "bad array subscript"
+    assert_contains "$out" "unclosed quote"
+    assert_contains "$(cat "$HOME/bus.log")" "sendText|s|cd $HOME/mis\ labs && urb red"
+    assert_contains "$(cat "$HOME/bus.log")" "/|org.lxqt.QTerminal.Process|getActiveWindow|"
+    chmod 000 "$HOME/.config/urb-tools/layout.conf"
+    if [[ ! -r "$HOME/.config/urb-tools/layout.conf" ]]; then
+        assert_status 1 env PATH="$HOME/fakebin:$PATH" "$URB_HOME/bin/urb" --no-color layout
+    fi
+    chmod 644 "$HOME/.config/urb-tools/layout.conf"
+}

@@ -22,12 +22,14 @@ info() { printf '%s[*]%s %s\n' "$CY" "$R" "$*"; }
 warn() { printf '%s[!]%s %s\n' "$YE" "$R" "$*" >&2; }
 err()  { printf '%s[x]%s %s\n' "$RE" "$R" "$*" >&2; }
 
-case "${1:-}" in
-    -y|--yes) ASSUME_YES=1 ;;
-    -h|--help) printf 'Usage: ./uninstall.sh [--yes]\nRemoves the urb launcher and %s. Keeps config and data.\n' "$APP_DIR"; exit 0 ;;
-    "") ;;
-    *) err "Unknown option: $1"; exit 2 ;;
-esac
+for _arg in "$@"; do
+    case "$_arg" in
+        -y|--yes) ASSUME_YES=1 ;;
+        -h|--help) printf 'Usage: ./uninstall.sh [--yes]\nRemoves the urb launcher and %s. Keeps config and data.\n' "$APP_DIR"; exit 0 ;;
+        *) err "Unknown option: $_arg"; exit 2 ;;
+    esac
+done
+unset _arg
 
 (( EUID == 0 )) && { err "Run as your normal user, not root."; exit 1; }
 
