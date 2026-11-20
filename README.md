@@ -487,7 +487,17 @@ Un árbol plegable con todas las sesiones abiertas, agrupadas por perfil y con s
 
 ### Disposición de trabajo (`urb layout`)
 
-Abre una pestaña nueva de QTerminal partida en 4 paneles y escribe en cada uno su comando:
+Cada comando abre una pestaña nueva de QTerminal y lanza un comando por panel.
+
+| Comando | Paneles por defecto |
+|---|---|
+| `urb layout 2` | GOD y el menú principal de URB |
+| `urb layout 3` | GOD, RED y BLUE |
+| `urb layout` o `urb layout 4` | Claude, BLUE, GOD y RED |
+| `urb layout 5` | Los cuatro anteriores y el menú principal de URB |
+| `urb layout 6` hasta `urb layout 9` | Los cinco anteriores y shells adicionales |
+
+El layout de 4 paneles queda así.
 
 ```
 ┌──────────────┬──────────────┐
@@ -497,7 +507,9 @@ Abre una pestaña nueva de QTerminal partida en 4 paneles y escribe en cada uno 
 └──────────────┴──────────────┘
 ```
 
-La disposición está en `~/.config/urb-tools/layout.conf` (`urb layout edit`): una línea por panel, `<tl|tr|bl|br> <carpeta> <comando>`; `.` es la carpeta desde la que lo lanzas y `-` deja solo la shell. `urb layout reset` vuelve a la de por defecto. Usa la interfaz D-Bus de QTerminal (`busctl`), así que solo funciona en QTerminal.
+`urb layout edit 3` personaliza el de 3 paneles. Usa `show` para ver la configuración y `reset` para restaurarla. El de 4 usa `~/.config/urb-tools/layout.conf` con posiciones `tl`, `tr`, `bl` y `br`. Los demás usan `layout-N.conf` con posiciones numeradas desde `1`. En cada línea se indica la posición, la carpeta (`.` para la actual) y el comando (`-` para dejar solo la shell). Requiere QTerminal y `busctl`.
+
+Para añadir un panel a la pestaña en la que ya estás, usa `urb layout add claude` o `urb layout add codex`. También admite `god`, `red` y `blue`. El panel aparece debajo del actual y arranca en la misma carpeta. Claude y Codex requieren que sus comandos estén disponibles en la shell de QTerminal.
 
 **HUD:** con suficiente anchura (GOD desde 140 columnas, RED desde 150) aparece `SES n`, el número de sesiones URB activas. Se calcula como mucho una vez cada 10 s (caché compartida en `$XDG_RUNTIME_DIR`) y no consulta tmux si no existe el socket. Con menos anchura, se oculta.
 

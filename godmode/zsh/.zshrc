@@ -312,7 +312,15 @@ if (( $+functions[compdef] )); then
                 if (( CURRENT == 3 )); then compadd -- list info attach kill menu
                 elif (( CURRENT == 4 )); then compadd -- god red blue
                 fi ;;
-            layout)  (( CURRENT == 3 )) && compadd -- show edit reset help ;;
+            layout)
+                if (( CURRENT == 3 )); then
+                    compadd -- {2..9} add show edit reset help
+                elif (( CURRENT == 4 )); then
+                    case ${words[3]} in
+                        add) compadd -- god red blue claude codex ;;
+                        show|edit|reset) compadd -- {2..9} ;;
+                    esac
+                fi ;;
             god)     compadd -- --no-anim --status --kill --check --help ;;
             network) (( CURRENT == 3 )) && compadd -- summary interfaces routes gateway connections discover ping check ;;
             monitor) compadd -- --once --interval procs ;;

@@ -512,3 +512,27 @@ Sin fallos: portapapeles e instalador.
 Pendientes (baja): caracteres CJK en rutas descuadran el borde del menú; el aviso de cerrar se corta a 40 columnas.
 
 Resultado: `tests/run.sh` → 193/193 · `shellcheck -S warning` → 0.
+
+## 2026-11-20 · `urb layout` de 2 a 9 paneles y `urb layout add`
+
+`urb layout N` (2–9) abre una pestaña de QTerminal con N paneles: 2 = GOD + menú de URB; 3 = GOD, RED, BLUE; 4 = Claude, BLUE, GOD, RED (como antes); 5 = los cuatro + menú; 6–9 añaden shells. Cada tamaño tiene su `layout-N.conf` (el de 4 sigue en `layout.conf` con `tl/tr/bl/br`); `show`, `edit` y `reset` aceptan el número.
+`urb layout add <god|red|blue|claude|codex>` añade un panel debajo del activo, en la misma carpeta. Autocompletado zsh, ayuda y docs (README, COMMANDS, ATAJOS) actualizados.
+
+| Feature | Código | Tests | Instalado | Probado en vivo |
+|---|---|---|---|---|
+| `urb layout 2`…`9` + `show/edit/reset N` | ✅ | ✅ WSL (busctl falso) | — | ⏳ Kali |
+| `urb layout add …` | ✅ | ✅ WSL (busctl falso) | — | ⏳ Kali |
+| Autocompletado zsh de `layout` | ✅ | — | — | ⏳ Kali |
+
+Resultado: `tests/run.sh` → 202/202 · `shellcheck -S warning` → 0 avisos.
+
+**Para probar en Kali:**
+
+```bash
+cd ~/urb-tools && git pull && ./install.sh
+urb layout 3          # pestaña con GOD, RED y BLUE
+urb layout 5          # Claude, BLUE, GOD, RED + menú de URB
+urb layout edit 3     # se abre layout-3.conf
+urb layout add claude # dentro de una pestaña de QTerminal: panel nuevo debajo con claude
+urb layout <Tab>      # en GOD/RED: completa 2..9 add show edit reset help
+```

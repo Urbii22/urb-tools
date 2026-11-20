@@ -76,7 +76,7 @@ ${C_BOLD}COMMANDS${C_RESET}
   ${T_KEY}red${C_RESET} [command]        URB Red: labs, target, recon, scans, services, findings, notes
   ${T_KEY}blue${C_RESET} [command]       URB Blue: offline SOC investigation
   ${T_KEY}sessions${C_RESET} [action]    List / inspect / attach / end GOD, RED and BLUE sessions
-  ${T_KEY}layout${C_RESET} [action]      Open your 4-pane QTerminal layout (Claude, BLUE, GOD, RED)
+  ${T_KEY}layout${C_RESET} [N|add APP]   Open a QTerminal layout or add to the active tab
   ${T_KEY}serve${C_RESET} [options]      Local HTTP server for the current directory (python3)
   ${T_KEY}doctor${C_RESET}               Check dependencies and environment
   ${T_KEY}manual${C_RESET} [which]       Manual: (none) commands · examples · atajos (keyboard shortcuts)

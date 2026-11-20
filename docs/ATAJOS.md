@@ -302,7 +302,7 @@ Un panel por máquina (`Ctrl+B %` / `"`), entra por SSH en cada una, `Ctrl+B :` 
 Cierra la ventana o `Ctrl+B d`: la sesión sigue. Vuelve con `urb god` / `urb red` / `urb blue` (o `urb sessions menu`).
 
 **Abrir todo tu entorno de golpe**
-`urb layout` → pestaña con Claude, BLUE, GOD y RED. Pasa de panel con `Alt+flechas` o con el ratón.
+`urb layout` → pestaña con Claude, BLUE, GOD y RED. Usa `urb layout 2` para GOD y el menú de URB, `urb layout 3` para GOD, RED y BLUE, o `urb layout 5` para añadir el menú de URB a los cuatro paneles. Pasa de panel con `Alt+flechas` o con el ratón.
 
 **Copiar un comando o una IP**
 Arrastra con el ratón (se copia al soltar) y pega con `Ctrl+Shift+V`. O doble clic sobre una palabra.

@@ -515,15 +515,22 @@ Añade una nota con marca temporal al hallazgo (hasta 1000 caracteres, de una l�
 - **Fuera de tmux:** `urb sessions menu` y la tecla `S` del dashboard. `Enter` reconecta y `n` abre el perfil.
 - Si ya tienes una función o alias `sessions`, se respeta y se avisa al abrir la shell. Usa `Ctrl+B s` o `urb sessions menu`.
 
-### `urb layout [show|edit|reset]`
+### `urb layout [N]` · `urb layout {show|edit|reset} [N]`
 
-Abre en QTerminal una pestaña nueva con 4 paneles (por defecto: `claude` arriba-izq, `urb blue` arriba-der, `urb god` abajo-izq, `urb red` abajo-der). En cada panel hace `cd` a su carpeta y escribe su comando.
+Abre una pestaña nueva de QTerminal con entre 2 y 9 paneles. En cada uno hace `cd` a su carpeta y ejecuta su comando. Sin número se usa la disposición de 4 paneles.
 
-- Fichero: `~/.config/urb-tools/layout.conf`, una línea por panel: `<tl|tr|bl|br> <carpeta> <comando>`. `.` = carpeta actual, `~` y rutas absolutas valen, `-` = solo shell.
-- `show` lo imprime, `edit` lo abre con `$EDITOR`, `reset` restaura el de por defecto.
+- `2` abre GOD y `urb dashboard` para elegir un modo. `3` abre GOD, RED y BLUE.
+- `4` abre Claude arriba a la izquierda, BLUE arriba a la derecha, GOD abajo a la izquierda y RED abajo a la derecha. `5` añade `urb dashboard` a esos cuatro. Del `6` al `9` se añaden shells normales.
+- Cada tamaño tiene su propio fichero en `~/.config/urb-tools/`. Para 4 paneles, `layout.conf` conserva las posiciones `tl`, `tr`, `bl` y `br`. Para los demás, `layout-N.conf` usa las posiciones `1` a `N`, en el orden en que se crean los paneles.
+- Escribe una línea por panel con `<posición> <carpeta> <comando>`. `.` usa la carpeta actual, `~` se expande y las carpetas con espacios van entre comillas dobles. Usa `-` para dejar solo la shell.
+- `urb layout show 5` imprime la configuración de 5 paneles, `urb layout edit 5` la abre con `$VISUAL` o `$EDITOR` y `urb layout reset 5` la restaura. Sin número, los tres operan sobre `layout.conf`.
 - Requisitos: QTerminal y `busctl`. Se puede lanzar desde dentro de GOD/RED/BLUE; la pestaña se abre en esa ventana.
 - Errores: sin QTerminal en D-Bus → `only works in QTerminal` (código 1); si un panel no se pudo preparar, se avisa cuál.
 - `urb sessions popup` es el lanzador interno que usan `Ctrl+B s` y `sessions`.
+
+### `urb layout add <god|red|blue|claude|codex>`
+
+Añade un panel debajo del activo en la misma pestaña de QTerminal. Arranca `urb god`, `urb red`, `urb blue`, `claude` o `codex` en la carpeta desde la que lo lanzas. Puedes usarlo desde una shell normal de QTerminal o desde una sesión de URB abierta allí. Claude y Codex necesitan sus respectivas CLI disponibles en la shell nueva.
 
 ---
 
