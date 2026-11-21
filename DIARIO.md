@@ -536,3 +536,22 @@ urb layout edit 3     # se abre layout-3.conf
 urb layout add claude # dentro de una pestaña de QTerminal: panel nuevo debajo con claude
 urb layout <Tab>      # en GOD/RED: completa 2..9 add show edit reset help
 ```
+
+## 2026-11-21 · Web del proyecto en GitHub Pages (`site/`)
+
+Web estática de presentación en `site/`: `index.html` (inicio), `entornos.html`, `modulos.html`, `flujos.html`, `seguridad.html` e `instalar.html`, más `assets/urb.css` (estilos compartidos), `assets/site.js` (animaciones e interacción) y `assets/favicon.svg`.
+
+**Decisiones:**
+- HTML, CSS y JS sin dependencias ni paso de build: se edita directamente lo que se publica.
+- Despliegue con GitHub Actions (`.github/workflows/pages.yml`) solo cuando cambia `site/` en `main`. No se usa `docs/` como origen de Pages porque ahí está el manual en Markdown.
+- Todo el contenido sale del README, `docs/COMMANDS.md` y este diario. Las salidas de terminal de las demos son ilustrativas (IPs de documentación, laboratorio HTB Lame). Las cifras «202 tests» y «0 avisos de ShellCheck» se actualizan a mano.
+- Accesibilidad: se respeta `prefers-reduced-motion`, los botones son `<button>` reales, hay enlace «Saltar al contenido» y la navegación sigue visible en móvil.
+- Fuentes desde Google Fonts (Inter, Space Grotesk, JetBrains Mono).
+
+| Feature | Código | Probado en vivo |
+|---|---|---|
+| 6 páginas enlazadas, navegación y pie | ✅ | ✅ Chrome headless (escritorio y 390 px) |
+| Terminal animada, fondo de red, pestañas GOD/RED/BLUE, copiar | ✅ | ✅ Chrome headless |
+| Despliegue en Pages | ✅ | ⏳ tras activar Settings → Pages → Source = GitHub Actions |
+
+**URL prevista:** https://urbii22.github.io/urb-tools/

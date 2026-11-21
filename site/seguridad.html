@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>URB-Tools — Seguridad</title>
+<meta name="description" content="Principios y decisiones técnicas de URB-Tools: sin eval, entradas validadas, datos que nunca se ejecutan e instalación con rollback.">
+<meta name="theme-color" content="#05070a">
+<meta property="og:type" content="website">
+<meta property="og:title" content="URB-Tools — Seguridad">
+<meta property="og:description" content="Principios y decisiones técnicas de URB-Tools: sin eval, entradas validadas, datos que nunca se ejecutan e instalación con rollback.">
+<meta name="twitter:card" content="summary">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;700&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap">
+<link rel="stylesheet" href="assets/urb.css">
+<script src="assets/site.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#contenido">Saltar al contenido</a>
+<div class="urb" style="width: 100%; min-height: 100vh;">
+
+  <header class="nav">
+    <nav class="wrap navbar" aria-label="Principal">
+      <a href="index.html" style="display: flex; align-items: center; gap: 12px; text-decoration: none; color: #e6edf3;">
+        <span class="mono" style="display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 10px; background: #00e5ff; color: #021014; font-weight: 700; font-size: 15px;">U</span>
+        <span class="disp" style="font-weight: 700; font-size: 19px; letter-spacing: -0.01em;">URB-Tools</span>
+      </a>
+      <div class="navlinks" style="display: flex; align-items: center; gap: 28px;">
+        <a class="navlink" href="index.html">Inicio</a>
+        <a class="navlink" href="entornos.html">Entornos</a>
+        <a class="navlink" href="modulos.html">Módulos</a>
+        <a class="navlink" href="flujos.html">Flujos</a>
+        <a class="navlink on" href="seguridad.html" aria-current="page">Seguridad</a>
+      </div>
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <a class="btn btn-ghost btn-sm" href="https://github.com/Urbii22/urb-tools" target="_blank" rel="noopener" aria-label="URB-Tools en GitHub">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.53-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.68 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.78 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.41-2.69 5.38-5.26 5.67.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg>
+          GitHub
+        </a>
+        <a class="btn btn-pri btn-sm navcta" href="instalar.html">Instalar</a>
+      </div>
+    </nav>
+  </header>
+  <main id="contenido">
+
+  <!-- PAGE HERO -->
+  <section class="phero gridbg" style="--oc: rgba(0,229,255,.2); --oc2: rgba(0,255,135,.12); --pc: #00e5ff;">
+    <div class="orb" aria-hidden="true"></div>
+    <div class="orb b" aria-hidden="true"></div>
+    <div class="scanline" aria-hidden="true"></div>
+    <div class="wrap" style="position: relative; display: flex; flex-wrap: wrap; gap: 48px; align-items: center; justify-content: space-between; padding-top: 110px; padding-bottom: 110px;">
+      <div style="flex: 1 1 560px; display: flex; flex-direction: column; gap: 26px;">
+        <div class="crumb hin"><a href="index.html">URB-Tools</a> / <b>Seguridad</b></div>
+        <h1 class="ph1 hin d1">Construida como debe estarlo<br><span class="grad">una herramienta de seguridad.</span></h1>
+        <p class="lead hin d2" style="max-width: 640px;">Una herramienta que vive en tu terminal y toca tus laboratorios tiene que ser predecible. Estas son las reglas con las que está hecha.</p>
+      </div>
+      <div class="hin d3" aria-hidden="true" style="flex: 0 1 260px; display: flex; justify-content: center;">
+        <svg width="240" height="240" viewBox="0 0 240 240" aria-hidden="true">
+          <circle class="pulse" cx="120" cy="120" r="60" fill="none" stroke="#00e5ff" stroke-width="1.2"></circle>
+          <circle class="pulse" cx="120" cy="120" r="60" fill="none" stroke="#00ff87" stroke-width="1.2" style="animation-delay: 1.2s;"></circle>
+          <circle cx="120" cy="120" r="100" fill="none" stroke="rgba(0,229,255,.18)" stroke-dasharray="3 9" class="flow"></circle>
+          <path d="M120 52 74 70v38c0 32 20 52 46 58 26-6 46-26 46-58V70z" fill="rgba(0,229,255,.1)" stroke="#00e5ff" stroke-width="3" stroke-linejoin="round"></path>
+          <path d="m98 116 15 15 30-30" fill="none" stroke="#00ff87" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"></path>
+        </svg>
+      </div>
+    </div>
+  </section>
+
+  <!-- PRINCIPLES -->
+  <section class="sec" style="padding-top: 100px;">
+    <div class="wrap">
+      <div class="pgrid rv">
+        <div class="pcell">
+          <div class="pico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg></div>
+          <h4>Nada es simulado</h4>
+          <p>CPU, RAM, red, sesiones y puertos salen de <code>/proc</code>, <code>ip</code>, <code>ss</code>, <code>ps</code>, nmap y los logs reales.</p>
+        </div>
+        <div class="pcell">
+          <div class="pico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M9 15l2 2 4-4"/></svg></div>
+          <h4>Tus dotfiles, intactos</h4>
+          <p>Carga tu <code>.zshrc</code> sin modificarlo. El instalador solo escribe en <code>~/.local</code> y <code>~/.config/urb-tools</code>.</p>
+        </div>
+        <div class="pcell">
+          <div class="pico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 4 6v6c0 5 3.4 8.3 8 9 4.6-.7 8-4 8-9V6z"/></svg></div>
+          <h4>Sin eval, todo validado</h4>
+          <p>IPs, CIDR, puertos y nombres se validan; nada que empiece por <code>-</code> llega a nmap como objetivo.</p>
+        </div>
+        <div class="pcell">
+          <div class="pico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></div>
+          <h4>sudo, solo cuando toca</h4>
+          <p>Únicamente para el comando que lo necesita y siempre después de avisar. No da privilegios extra.</p>
+        </div>
+        <div class="pcell">
+          <div class="pico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg></div>
+          <h4>Datos, nunca código</h4>
+          <p>Configuración, perfiles, temas y <code>.urb-lab</code> se leen línea a línea y jamás se ejecutan.</p>
+        </div>
+        <div class="pcell">
+          <div class="pico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></div>
+          <h4>Instalación con rollback</h4>
+          <p>Copia, verifica y activa. Si algo falla durante una actualización, restaura la versión anterior.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- QUALITY STRIP -->
+  <section class="wrap" style="padding-bottom: 40px;">
+    <div class="rv" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;">
+      <div class="stat"><div class="statn grad">202</div><div class="statl">tests en verde con un runner en Bash puro</div></div>
+      <div class="stat"><div class="statn" style="color: #00ff87;">0</div><div class="statl">avisos de ShellCheck con <span class="kbd">-S warning</span></div></div>
+      <div class="stat"><div class="statn" style="color: #ffc400;">≥ 4.4</div><div class="statl">la única exigencia de Bash</div></div>
+      <div class="stat"><div class="statn" style="color: #d5dee6;">MIT</div><div class="statl">código abierto, revisable línea a línea</div></div>
+    </div>
+  </section>
+
+  <!-- DECISIONS + ARCH -->
+  <section class="sec" style="padding-top: 80px;">
+    <div class="wrap" style="display: flex; flex-direction: column; gap: 48px;">
+      <div class="rv" style="display: flex; flex-direction: column; gap: 18px;">
+        <p class="eyebrow">Por dentro</p>
+        <h2 class="h2">Decisiones técnicas<br>y arquitectura.</h2>
+      </div>
+      <div style="display: flex; flex-wrap: wrap; gap: 32px; align-items: flex-start;">
+        <div class="rv2" style="flex: 1 1 440px; min-width: 0;">
+          <div class="dec"><span class="k">01</span><div><h4>Bash puro, sin dependencias obligatorias</h4><p>Menús y dashboard con un motor propio sobre <span class="kbd">tput</span> y ANSI. fzf y figlet son mejoras opcionales.</p></div></div>
+          <div class="dec"><span class="k">02</span><div><h4>Sin parpadeo</h4><p>Cada frame se compone en un búfer y se escribe con un solo <span class="kbd">printf</span> en la pantalla alternativa.</p></div></div>
+          <div class="dec"><span class="k">03</span><div><h4>Terminal siempre restaurada</h4><p>Traps de EXIT, INT, QUIT, TERM y HUP devuelven cursor, eco y <span class="kbd">stty</span> originales.</p></div></div>
+          <div class="dec"><span class="k">04</span><div><h4>Módulos aislados</h4><p>Cada módulo corre en una subshell: un error o un Ctrl+C te devuelve al dashboard.</p></div></div>
+          <div class="dec"><span class="k">05</span><div><h4>Errores con significado</h4><p>Sin <span class="kbd">set -e</span>: códigos claros, 2 uso incorrecto, 127 falta una herramienta, 130 cancelado.</p></div></div>
+        </div>
+        <div class="card rv2" style="flex: 1 1 460px; min-width: 0; padding: 0;">
+          <div class="tbar"><span class="tdot" style="background: #ff5f57;"></span><span class="tdot" style="background: #febc2e;"></span><span class="tdot" style="background: #28c840;"></span><span class="ttitle">tree urb-tools</span></div>
+          <div class="arch"><span class="d">urb-tools/</span>
+├── <span class="d">bin/</span>urb            <span class="c"># CLI y despacho</span>
+├── <span class="d">commands/</span>          <span class="c"># Command Engine (datos)</span>
+├── <span class="d">lib/</span>
+│   ├── engine.sh      <span class="c"># modificadores</span>
+│   ├── ui.sh          <span class="c"># motor TUI</span>
+│   ├── system.sh      <span class="c"># datos reales</span>
+│   ├── findings.sh    <span class="c"># hallazgos</span>
+│   ├── scans.sh       <span class="c"># índice S-NNN</span>
+│   └── blue_*.py      <span class="c"># SOC offline</span>
+├── <span class="d">modules/</span>           <span class="c"># scan, network, logs…</span>
+├── <span class="d">godmode/</span>           <span class="c"># tmux, HUD, temas</span>
+├── <span class="d">tests/</span>             <span class="c"># runner + fixtures</span>
+└── install.sh</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- NEXT -->
+  <section class="wrap" style="padding-bottom: 120px;">
+    <a class="nextp rv" href="instalar.html">
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <span class="nl">Siguiente</span>
+        <span class="nt">Instálala en tu Kali</span>
+      </div>
+      <span class="narrow"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+    </a>
+  </section>
+
+  </main>
+
+  <footer class="foot">
+    <div class="wrap" style="display: flex; flex-wrap: wrap; gap: 24px; align-items: center; justify-content: space-between;">
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <span class="mono" style="display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 9px; background: #00e5ff; color: #021014; font-weight: 700; font-size: 14px;">U</span>
+        <span style="font-size: 14px; color: #a2afbc;">URB-Tools · Licencia MIT · Creado por <a href="https://diegourbaneja.dev" target="_blank" rel="noopener">Diego Urbaneja</a></span>
+      </div>
+      <div style="display: flex; flex-wrap: wrap; gap: 22px;">
+        <a class="flink" href="index.html">Inicio</a>
+        <a class="flink" href="entornos.html">Entornos</a>
+        <a class="flink" href="modulos.html">Módulos</a>
+        <a class="flink" href="flujos.html">Flujos</a>
+        <a class="flink" href="instalar.html">Instalar</a>
+        <a class="flink" href="https://github.com/Urbii22/urb-tools" target="_blank" rel="noopener">GitHub</a>
+      </div>
+    </div>
+    <p class="wrap" style="margin: 28px auto 0; font-size: 13px; color: #97a4b2;">Úsala solo contra sistemas propios o con autorización explícita por escrito.</p>
+  </footer>
+</div>
+</body>
+</html>

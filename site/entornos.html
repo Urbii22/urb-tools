@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>URB-Tools — Entornos</title>
+<meta name="description" content="GOD, RED y BLUE: tu Zsh real dentro de un tmux aislado, con tema, HUD y prompt propios para cada forma de trabajar.">
+<meta name="theme-color" content="#05070a">
+<meta property="og:type" content="website">
+<meta property="og:title" content="URB-Tools — Entornos">
+<meta property="og:description" content="GOD, RED y BLUE: tu Zsh real dentro de un tmux aislado, con tema, HUD y prompt propios para cada forma de trabajar.">
+<meta name="twitter:card" content="summary">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;700&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap">
+<link rel="stylesheet" href="assets/urb.css">
+<script src="assets/site.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#contenido">Saltar al contenido</a>
+<div class="urb" style="width: 100%; min-height: 100vh;">
+
+  <header class="nav">
+    <nav class="wrap navbar" aria-label="Principal">
+      <a href="index.html" style="display: flex; align-items: center; gap: 12px; text-decoration: none; color: #e6edf3;">
+        <span class="mono" style="display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 10px; background: #00e5ff; color: #021014; font-weight: 700; font-size: 15px;">U</span>
+        <span class="disp" style="font-weight: 700; font-size: 19px; letter-spacing: -0.01em;">URB-Tools</span>
+      </a>
+      <div class="navlinks" style="display: flex; align-items: center; gap: 28px;">
+        <a class="navlink" href="index.html">Inicio</a>
+        <a class="navlink on" href="entornos.html" aria-current="page">Entornos</a>
+        <a class="navlink" href="modulos.html">Módulos</a>
+        <a class="navlink" href="flujos.html">Flujos</a>
+        <a class="navlink" href="seguridad.html">Seguridad</a>
+      </div>
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <a class="btn btn-ghost btn-sm" href="https://github.com/Urbii22/urb-tools" target="_blank" rel="noopener" aria-label="URB-Tools en GitHub">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.53-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.68 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.78 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.41-2.69 5.38-5.26 5.67.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg>
+          GitHub
+        </a>
+        <a class="btn btn-pri btn-sm navcta" href="instalar.html">Instalar</a>
+      </div>
+    </nav>
+  </header>
+  <main id="contenido">
+
+  <!-- PAGE HERO -->
+  <section class="phero gridbg" style="--oc: rgba(255,196,0,.2); --oc2: rgba(255,69,69,.14); --pc: #ffc400;">
+    <div class="orb" aria-hidden="true"></div>
+    <div class="orb b" aria-hidden="true"></div>
+    <div class="scanline" aria-hidden="true"></div>
+    <div class="wrap" style="position: relative; display: flex; flex-direction: column; gap: 26px; padding-top: 110px; padding-bottom: 110px;">
+      <div class="crumb hin"><a href="index.html">URB-Tools</a> / <b>Entornos</b></div>
+      <h1 class="ph1 hin d1">Tres entornos.<br><span style="background: linear-gradient(90deg, #ffc400, #ff4545 50%, #3b93ff); -webkit-background-clip: text; background-clip: text; color: transparent;">Una sola herramienta.</span></h1>
+      <p class="lead hin d2" style="max-width: 680px;">Cada modo es tu Zsh de siempre dentro de un tmux aislado, con su propio tema, HUD y prompt. Cambia de uno a otro sin perder nada: las sesiones siguen vivas en segundo plano.</p>
+      <div class="hin d3 mono" style="font-size: 15px; color: #c5d0da;"><span style="color: #00ff87;">$</span> <span class="typing">urb god · urb red · urb blue</span></div>
+    </div>
+  </section>
+
+  <!-- MODES -->
+  <section class="sec modes m-god" data-tabs>
+    <div class="mglow" aria-hidden="true"></div>
+    <div class="wrap" style="position: relative; display: flex; flex-wrap: wrap; gap: 32px; align-items: flex-start;">
+      <div role="group" aria-label="Elige un entorno" style="flex: 1 1 280px; max-width: 360px; display: flex; flex-direction: column; gap: 12px;">
+          <button type="button" class="mtab tab-god is-on" data-mode="god" aria-pressed="true">
+            <span class="mtname" style="color: #ffc400;">GOD MODE</span>
+            <span class="mtcmd">$ urb god</span>
+            <span class="mtbar"></span>
+          </button>
+          <button type="button" class="mtab tab-red" data-mode="red" aria-pressed="false">
+            <span class="mtname" style="color: #ff4545;">URB RED</span>
+            <span class="mtcmd">$ urb red</span>
+            <span class="mtbar"></span>
+          </button>
+          <button type="button" class="mtab tab-blue" data-mode="blue" aria-pressed="false">
+            <span class="mtname" style="color: #3b93ff;">URB BLUE</span>
+            <span class="mtcmd">$ urb blue</span>
+            <span class="mtbar"></span>
+          </button>
+      </div>
+      <div style="flex: 999 1 520px; min-width: 0;">
+        <div class="mpanel" data-panel="god" style="display: flex; flex-direction: column; gap: 22px;">
+          <span class="mchip" style="align-self: flex-start;">GOD MODE</span>
+          <h2 class="mtitle">Tu Zsh de siempre, con superpoderes.</h2>
+          <p class="sub" style="max-width: 680px;">Convierte la ventana en la que estás en un espacio de trabajo con HUD, prompt URB y sesiones que sobreviven al cierre. Alias, historial y autocompletado siguen siendo los tuyos.</p>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px 28px;">
+              <div class="mpt"><i></i><span>Servidor tmux propio (socket urb-god): nunca usa tu ~/.tmux.conf</span></div>
+              <div class="mpt"><i></i><span>Carga tu .zshrc sin modificarlo mediante un ZDOTDIR temporal</span></div>
+              <div class="mpt"><i></i><span>Ctrl+B d desconecta y tus procesos siguen ejecutándose</span></div>
+              <div class="mpt"><i></i><span>HUD con CPU, RAM, IP, VPN, rama de Git y hora cada 2 s</span></div>
+          </div>
+          <div class="mini">
+            <div style="padding: 16px 18px;">
+              <div class="ml mp">╭─[GOD]─[diego@kali]─[~/proyectos]─[git:main*]</div>
+              <div class="ml"><span class="mp">╰─❯ </span>urb god<span class="caret" style="background: var(--mc);"></span></div>
+            </div>
+            <div class="mhud">
+                <span>CPU <b>14%</b></span>
+                <span>RAM <b>3.2G</b></span>
+                <span>IP <b>192.168.56.101</b></span>
+                <span>VPN <b>tun0</b></span>
+                <span>git <b>main</b></span>
+            </div>
+          </div>
+        </div>
+        <div class="mpanel" data-panel="red" style="display: flex; flex-direction: column; gap: 22px;" hidden>
+          <span class="mchip" style="align-self: flex-start;">URB RED</span>
+          <h2 class="mtitle">Laboratorios con memoria.</h2>
+          <p class="sub" style="max-width: 680px;">El perfil para HTB, THM, VulnHub o tus propios laboratorios: objetivo persistente, reconocimiento con diagnóstico y un registro de investigación que sigue ahí cuando vuelves.</p>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px 28px;">
+              <div class="mpt"><i></i><span>recon initial con progreso real y diagnóstico confirmed / possible / unknown</span></div>
+              <div class="mpt"><i></i><span>Escaneos con IDs S-NNN, latest y diff entre escaneos</span></div>
+              <div class="mpt"><i></i><span>Inventario de servicios construido desde los XML de nmap</span></div>
+              <div class="mpt"><i></i><span>Hallazgos, notas, evidencias e informes en Markdown</span></div>
+          </div>
+          <div class="mini">
+            <div style="padding: 16px 18px;">
+              <div class="ml mp">╭─[RED]─[htb-lame ▸ 10.10.10.3]─[~/urb-labs/htb-lame]</div>
+              <div class="ml"><span class="mp">╰─❯ </span>urb red recon quick versions<span class="caret" style="background: var(--mc);"></span></div>
+            </div>
+            <div class="mhud">
+                <span>LAB <b>htb-lame</b></span>
+                <span>TGT <b>10.10.10.3</b></span>
+                <span>VPN <b>tun0 10.10.14.7</b></span>
+                <span>CPU <b>21%</b></span>
+            </div>
+          </div>
+        </div>
+        <div class="mpanel" data-panel="blue" style="display: flex; flex-direction: column; gap: 22px;" hidden>
+          <span class="mchip" style="align-self: flex-start;">URB BLUE</span>
+          <h2 class="mtitle">Investigación SOC, sin salir de tu máquina.</h2>
+          <p class="sub" style="max-width: 680px;">Workspaces con fuentes, eventos, alertas y casos, separados de tus laboratorios RED. Python 3 y SQLite de la biblioteca estándar: sin servicios externos ni nada que desplegar.</p>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px 28px;">
+              <div class="mpt"><i></i><span>Ingesta de CSV de Windows y de auth.log con zona horaria explícita</span></div>
+              <div class="mpt"><i></i><span>Procedencia por SHA-256: reimportar no duplica eventos</span></div>
+              <div class="mpt"><i></i><span>Detección de fuerza bruta (4625) por ventanas móviles</span></div>
+              <div class="mpt"><i></i><span>Triaje de alertas y casos con historial y evidencias</span></div>
+          </div>
+          <div class="mini">
+            <div style="padding: 16px 18px;">
+              <div class="ml mp">╭─[BLUE]─[ws incident-rdp]─[~/urb-blue/incident-rdp]</div>
+              <div class="ml"><span class="mp">╰─❯ </span>urb blue detect run<span class="caret" style="background: var(--mc);"></span></div>
+            </div>
+            <div class="mhud">
+                <span>WS <b>incident-rdp</b></span>
+                <span>DB <b>SQLite</b></span>
+                <span>MODE <b>offline</b></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- IR Y VOLVER -->
+  <section class="sec" style="padding-top: 40px;">
+    <div class="wrap" style="display: flex; flex-direction: column; gap: 40px;">
+      <div class="rv" style="display: flex; flex-direction: column; gap: 18px;">
+        <p class="eyebrow">Ir y volver</p>
+        <h2 class="h2">Salir no es lo mismo<br>que desconectarse.</h2>
+        <p class="sub">Tus programas siguen corriendo aunque cierres la ventana. Tú decides cuándo termina una sesión.</p>
+      </div>
+      <div class="tblbox rv2">
+        <table class="tbl">
+          <thead><tr><th>Acción</th><th>Qué pasa con tus programas</th><th>Cómo volver</th></tr></thead>
+          <tbody>
+            <tr><td><code>exit</code> en la shell</td><td>Se cierra la shell. Si era la última, la sesión termina.</td><td><code>urb god</code> abre una sesión nueva</td></tr>
+            <tr><td><code>Ctrl+B d</code></td><td><span style="color: #00ff87;">Siguen ejecutándose</span> en segundo plano.</td><td><code>urb sessions attach god</code> o <span class="kbd">S</span> en el dashboard</td></tr>
+            <tr><td>Cerrar la ventana</td><td>Siguen ejecutándose.</td><td><code>urb sessions attach god</code></td></tr>
+            <tr><td><code>urb god --kill</code></td><td>Termina la sesión elegida. Pide confirmación si hay programas activos.</td><td>—</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- SESSIONS + LAYOUT -->
+  <section class="sec" style="padding-top: 40px;">
+    <div class="wrap" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 480px), 1fr)); gap: 18px;">
+      <article class="card rv" style="--c: #3b93ff; padding: 32px;">
+        <span class="ctag" style="color: #6aaeff;">Ctrl+B s · urb sessions menu</span>
+        <h3>Todas tus sesiones, en un árbol</h3>
+        <p>Agrupadas por perfil y con su color. Entra con Enter, abre una nueva con <span class="kbd">n</span> o cierra con <span class="kbd">x</span>. Dentro de GOD, RED o BLUE se abre como ventana flotante.</p>
+        <div class="vis tree" aria-hidden="true" style="min-height: 210px;"><span style="color: #6aaeff;">▾ BLUE (0)</span>  <span style="color: #6f7d8a;">URB Blue · no sessions, n opens one</span>
+<span style="color: #ffc400;">▾ GOD (1)</span>   <span style="color: #6f7d8a;">God Mode</span>
+   <span class="sdot" style="background: #ffc400;"></span>god-4121-08812   detached   1w   5m
+<span style="color: #ff6b6b;">▾ RED (2)</span>   <span style="color: #6f7d8a;">URB Red</span>
+   <span class="sdot" style="background: #ff4545;"></span>red-3990-17345   <span style="color: #ffffff;">current</span>    2w   0s
+   <span class="sdot" style="background: #ff4545; animation-delay: .7s;"></span>red-4410-00321   detached   1w   1h</div>
+      </article>
+      <article class="card rv" style="--c: #00ff87; padding: 32px;">
+        <span class="ctag" style="color: #00ff87;">urb layout 2…9</span>
+        <h3>Tu espacio de trabajo, montado solo</h3>
+        <p>Una pestaña de QTerminal con un comando por panel. Personaliza cada tamaño con <span class="kbd">urb layout edit N</span> o añade un panel con <span class="kbd">urb layout add</span>.</p>
+        <div class="vis" aria-hidden="true" style="min-height: 210px;">
+          <div class="panes">
+            <div class="pane" style="color: #d9a27e;">claude<i></i><i style="width: 60%;"></i><i style="width: 80%;"></i></div>
+            <div class="pane" style="color: #6aaeff; animation-delay: .25s;">urb blue<i></i><i style="width: 40%;"></i><i style="width: 70%;"></i></div>
+            <div class="pane" style="color: #ffc400; animation-delay: .5s;">urb god<i style="width: 70%;"></i><i></i><i style="width: 50%;"></i></div>
+            <div class="pane" style="color: #ff6b6b; animation-delay: .75s;">urb red<i></i><i style="width: 50%;"></i><i style="width: 90%;"></i></div>
+          </div>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <!-- NEXT -->
+  <section class="wrap" style="padding-bottom: 120px;">
+    <a class="nextp rv" href="modulos.html">
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <span class="nl">Siguiente</span>
+        <span class="nt">Los módulos: todo a una tecla</span>
+      </div>
+      <span class="narrow"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+    </a>
+  </section>
+
+  </main>
+
+  <footer class="foot">
+    <div class="wrap" style="display: flex; flex-wrap: wrap; gap: 24px; align-items: center; justify-content: space-between;">
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <span class="mono" style="display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 9px; background: #00e5ff; color: #021014; font-weight: 700; font-size: 14px;">U</span>
+        <span style="font-size: 14px; color: #a2afbc;">URB-Tools · Licencia MIT · Creado por <a href="https://diegourbaneja.dev" target="_blank" rel="noopener">Diego Urbaneja</a></span>
+      </div>
+      <div style="display: flex; flex-wrap: wrap; gap: 22px;">
+        <a class="flink" href="index.html">Inicio</a>
+        <a class="flink" href="modulos.html">Módulos</a>
+        <a class="flink" href="flujos.html">Flujos</a>
+        <a class="flink" href="seguridad.html">Seguridad</a>
+        <a class="flink" href="instalar.html">Instalar</a>
+        <a class="flink" href="https://github.com/Urbii22/urb-tools" target="_blank" rel="noopener">GitHub</a>
+      </div>
+    </div>
+    <p class="wrap" style="margin: 28px auto 0; font-size: 13px; color: #97a4b2;">Úsala solo contra sistemas propios o con autorización explícita por escrito.</p>
+  </footer>
+</div>
+</body>
+</html>
