@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>URB-Tools — Módulos</title>
+<meta name="description" content="RECON, NETWORK, MONITOR, LOGS, CTF, sesiones y layouts: todos los módulos de URB-Tools, desde el dashboard o como comandos sueltos.">
+<meta name="theme-color" content="#05070a">
+<meta property="og:type" content="website">
+<meta property="og:title" content="URB-Tools — Módulos">
+<meta property="og:description" content="RECON, NETWORK, MONITOR, LOGS, CTF, sesiones y layouts: todos los módulos de URB-Tools, desde el dashboard o como comandos sueltos.">
+<meta name="twitter:card" content="summary">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;700&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap">
+<link rel="stylesheet" href="assets/urb.css">
+<script src="assets/site.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#contenido">Saltar al contenido</a>
+<div class="urb" style="width: 100%; min-height: 100vh;">
+
+  <header class="nav">
+    <nav class="wrap navbar" aria-label="Principal">
+      <a href="index.html" style="display: flex; align-items: center; gap: 12px; text-decoration: none; color: #e6edf3;">
+        <span class="mono" style="display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 10px; background: #00e5ff; color: #021014; font-weight: 700; font-size: 15px;">U</span>
+        <span class="disp" style="font-weight: 700; font-size: 19px; letter-spacing: -0.01em;">URB-Tools</span>
+      </a>
+      <div class="navlinks" style="display: flex; align-items: center; gap: 28px;">
+        <a class="navlink" href="index.html">Inicio</a>
+        <a class="navlink" href="entornos.html">Entornos</a>
+        <a class="navlink on" href="modulos.html" aria-current="page">Módulos</a>
+        <a class="navlink" href="flujos.html">Flujos</a>
+        <a class="navlink" href="seguridad.html">Seguridad</a>
+      </div>
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <a class="btn btn-ghost btn-sm" href="https://github.com/Urbii22/urb-tools" target="_blank" rel="noopener" aria-label="URB-Tools en GitHub">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.53-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.68 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.78 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.41-2.69 5.38-5.26 5.67.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg>
+          GitHub
+        </a>
+        <a class="btn btn-pri btn-sm navcta" href="instalar.html">Instalar</a>
+      </div>
+    </nav>
+  </header>
+  <main id="contenido">
+
+  <!-- PAGE HERO -->
+  <section class="phero gridbg" style="--oc: rgba(0,229,255,.2); --oc2: rgba(0,255,135,.12); --pc: #00ff87;">
+    <div class="orb" aria-hidden="true"></div>
+    <div class="orb b" aria-hidden="true"></div>
+    <div class="scanline" aria-hidden="true"></div>
+    <div class="wrap" style="position: relative; display: flex; flex-direction: column; gap: 26px; padding-top: 110px; padding-bottom: 110px;">
+      <div class="crumb hin"><a href="index.html">URB-Tools</a> / <b>Módulos</b></div>
+      <h1 class="ph1 hin d1">Todo lo que necesitas,<br><span class="grad">a una tecla.</span></h1>
+      <p class="lead hin d2" style="max-width: 680px;">El dashboard abre cada herramienta sin submenús. Y cada módulo también funciona como comando suelto, para tus scripts y tus flujos.</p>
+      <div class="hin d3 mono" style="font-size: 15px; color: #c5d0da;"><span style="color: #00ff87;">$</span> <span class="typing">urb · urb scan · urb network · urb logs</span></div>
+    </div>
+  </section>
+
+  <!-- BENTO -->
+  <section class="sec" style="padding-top: 100px;">
+    <div class="wrap">
+      <div class="bento">
+        <article class="card span2 row2 rv" style="--c: #00e5ff;">
+          <span class="ctag">$ urb</span>
+          <h3>Dashboard: el centro de control</h3>
+          <p>GOD, RED, BLUE, una Zsh normal y todas las herramientas desde un solo menú. Sales de un entorno con <span class="mono" style="color: #8af4ff;">Ctrl+B d</span> y vuelves al menú con la sesión viva.</p>
+          <div class="vis dash" aria-hidden="true">
+            <div style="display: flex; justify-content: space-between; color: #00e5ff; font-weight: 700;"><span>URB TERMINAL</span><span style="color: #6f8a99; font-weight: 400;">kali · VPN ● tun0</span></div>
+            <div class="dsec">TERMINAL ENVIRONMENTS</div>
+            <div class="ditem" style="animation-delay: 0s;"><kbd>[G]</kbd><span>GOD MODE</span></div>
+            <div class="ditem" style="animation-delay: 1.125s;"><kbd>[R]</kbd><span>RED MODE</span></div>
+            <div class="ditem" style="animation-delay: 2.25s;"><kbd>[B]</kbd><span>BLUE MODE</span></div>
+            <div class="ditem" style="animation-delay: 3.375s;"><kbd>[Z]</kbd><span>NORMAL SHELL</span></div>
+            <div class="dsec">CYBERSECURITY TOOLS</div>
+            <div class="ditem" style="animation-delay: 4.5s;"><kbd>[1]</kbd><span>RECON</span></div>
+            <div class="ditem" style="animation-delay: 5.625s;"><kbd>[2]</kbd><span>NETWORK</span></div>
+            <div class="ditem" style="animation-delay: 6.75s;"><kbd>[3]</kbd><span>MONITOR</span></div>
+            <div class="ditem" style="animation-delay: 7.875s;"><kbd>[4]</kbd><span>LOGS</span><span class="soon">↓ more</span></div>
+          </div>
+        </article>
+
+        <article class="card span2 rv" style="--c: #00e5ff;">
+          <span class="ctag">$ urb scan</span>
+          <h3>RECON</h3>
+          <p>Nmap con perfiles, puertos abiertos en vivo y progreso real. Ctrl+C cancela limpio y guarda .nmap, .xml y .gnmap.</p>
+          <div class="vis" aria-hidden="true" style="min-height: 190px;">
+            <div class="ptab"><span class="h">PORT      SERVICE  VERSION</span>
+<span class="r" style="animation-delay: .2s; display: inline-block;">22/tcp    ssh      OpenSSH 9.6</span>
+<span class="r" style="animation-delay: .6s; display: inline-block;">80/tcp    http     Apache 2.4.62</span>
+<span class="r" style="animation-delay: 1s; display: inline-block;">445/tcp   smb      Samba 4.19</span>
+<span class="r" style="animation-delay: 1.4s; display: inline-block;">8080/tcp  http     Jetty 9.4</span></div>
+            <div class="radar">
+              <span class="blip" style="left: 60px; top: 70px; animation-delay: .3s;"></span>
+              <span class="blip" style="left: 140px; top: 52px; animation-delay: 1.1s;"></span>
+              <span class="blip" style="left: 110px; top: 150px; animation-delay: 1.9s;"></span>
+              <span class="blip" style="left: 170px; top: 120px; animation-delay: 2.5s;"></span>
+            </div>
+          </div>
+        </article>
+
+        <article class="card rv" style="--c: #00ff87;">
+          <span class="ctag" style="color: #00ff87;">$ urb monitor</span>
+          <h3>MONITOR</h3>
+          <p>CPU total y por núcleo, RAM, swap, discos y procesos a pantalla completa.</p>
+          <div class="vis" aria-hidden="true">
+            <div class="eq">
+              <span style="animation-duration: 1.3s;"></span>
+              <span style="animation-duration: .9s; animation-delay: -.4s;"></span>
+              <span style="animation-duration: 1.7s; animation-delay: -.2s;"></span>
+              <span style="animation-duration: 1.1s; animation-delay: -.8s;"></span>
+              <span style="animation-duration: 1.5s; animation-delay: -.5s;"></span>
+              <span style="animation-duration: .8s; animation-delay: -.1s;"></span>
+              <span style="animation-duration: 1.9s; animation-delay: -.9s;"></span>
+              <span style="animation-duration: 1.2s; animation-delay: -.3s;"></span>
+            </div>
+          </div>
+        </article>
+
+        <article class="card rv" style="--c: #ff4545;">
+          <span class="ctag" style="color: #ff6b6b;">$ urb logs</span>
+          <h3>LOGS</h3>
+          <p>Fallos de autenticación, SSH y errores, con top de IPs y usuarios.</p>
+          <div class="vis" aria-hidden="true">
+            <div class="logs">
+              <div class="lt">
+                <div class="lg bad">sshd: Failed password for root from 203.0.113.50</div>
+                <div class="lg">sudo: diego : COMMAND=/usr/bin/nmap</div>
+                <div class="lg bad">sshd: Failed password for invalid user admin</div>
+                <div class="lg good">sshd: Accepted publickey for diego</div>
+                <div class="lg bad">sshd: Failed password for root from 203.0.113.50</div>
+                <div class="lg">systemd: Started session 42 of user diego</div>
+                <div class="lg bad">sshd: Failed password for root from 203.0.113.50</div>
+                <div class="lg">sshd: Connection closed by 198.51.100.23</div>
+                <div class="lg bad">sshd: Failed password for root from 203.0.113.50</div>
+                <div class="lg">sudo: diego : COMMAND=/usr/bin/nmap</div>
+                <div class="lg bad">sshd: Failed password for invalid user admin</div>
+                <div class="lg good">sshd: Accepted publickey for diego</div>
+                <div class="lg bad">sshd: Failed password for root from 203.0.113.50</div>
+                <div class="lg">systemd: Started session 42 of user diego</div>
+                <div class="lg bad">sshd: Failed password for root from 203.0.113.50</div>
+                <div class="lg">sshd: Connection closed by 198.51.100.23</div>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="card rv" style="--c: #00e5ff;">
+          <span class="ctag">$ urb network</span>
+          <h3>NETWORK</h3>
+          <p>Interfaces, rutas, conexiones, descubrimiento de hosts y conectividad.</p>
+          <div class="vis" aria-hidden="true">
+            <svg viewBox="0 0 240 150" width="100%" height="100%" preserveAspectRatio="xMidYMid meet" aria-hidden="true" style="position: absolute; inset: 0;">
+              <g stroke="#00e5ff" stroke-opacity=".55" stroke-width="1.3" fill="none">
+                <path class="flow" d="M120 75 L40 30"></path>
+                <path class="flow" d="M120 75 L200 30" style="animation-duration: 1.6s;"></path>
+                <path class="flow" d="M120 75 L40 120" style="animation-duration: .9s;"></path>
+                <path class="flow" d="M120 75 L200 120" style="animation-duration: 1.4s;"></path>
+                <path class="flow" d="M120 75 L120 18" style="animation-duration: 1.1s;"></path>
+              </g>
+              <circle class="pulse" cx="120" cy="75" r="10" fill="none" stroke="#00e5ff" stroke-width="1.5"></circle>
+              <circle cx="120" cy="75" r="9" fill="#00e5ff"></circle>
+              <circle cx="40" cy="30" r="5" fill="#00ff87"></circle>
+              <circle cx="200" cy="30" r="5" fill="#00ff87"></circle>
+              <circle cx="40" cy="120" r="5" fill="#00ff87"></circle>
+              <circle cx="200" cy="120" r="5" fill="#ffc400"></circle>
+              <circle cx="120" cy="18" r="5" fill="#00ff87"></circle>
+            </svg>
+          </div>
+        </article>
+
+        <article class="card rv" style="--c: #ffc400;">
+          <span class="ctag" style="color: #ffc400;">$ urb ctf new</span>
+          <h3>CTF</h3>
+          <p>Laboratorios listos en un comando. Los escaneos caen en su carpeta.</p>
+          <div class="vis tree" aria-hidden="true"><span class="f">htb-lame/</span>
+├── <span class="f">scans/</span>
+├── <span class="f">exploits/</span>
+├── <span class="f">evidence/</span>
+├── <span class="f">notes/</span>
+└── report.md</div>
+        </article>
+
+        <article class="card rv" style="--c: #3b93ff;">
+          <span class="ctag" style="color: #6aaeff;">$ urb sessions</span>
+          <h3>SESIONES</h3>
+          <p>Árbol de sesiones GOD, RED y BLUE. Entra, abre o cierra desde Ctrl+B s.</p>
+          <div class="vis tree" aria-hidden="true" style="font-size: 12px;"><span style="color: #ffc400;">▾ GOD (1)</span>
+  <span class="sdot" style="background: #ffc400;"></span>god-4121  detached
+<span style="color: #ff6b6b;">▾ RED (2)</span>
+  <span class="sdot" style="background: #ff4545;"></span>red-3990  current
+  <span class="sdot" style="background: #ff4545; animation-delay: .7s;"></span>red-4410  detached</div>
+        </article>
+
+        <article class="card rv" style="--c: #00ff87;">
+          <span class="ctag" style="color: #00ff87;">$ urb layout 4</span>
+          <h3>LAYOUT</h3>
+          <p>De 2 a 9 paneles en una pestaña de QTerminal, con un comando por panel.</p>
+          <div class="vis" aria-hidden="true">
+            <div class="panes">
+              <div class="pane" style="color: #d9a27e;">claude<i></i><i style="width: 60%;"></i></div>
+              <div class="pane" style="color: #6aaeff; animation-delay: .25s;">urb blue<i></i><i style="width: 40%;"></i></div>
+              <div class="pane" style="color: #ffc400; animation-delay: .5s;">urb god<i style="width: 70%;"></i><i></i></div>
+              <div class="pane" style="color: #ff6b6b; animation-delay: .75s;">urb red<i></i><i style="width: 50%;"></i></div>
+            </div>
+          </div>
+        </article>
+
+        <article class="card span4 rv" style="--c: #00e5ff;">
+          <div style="display: flex; flex-wrap: wrap; gap: 28px; align-items: center; justify-content: space-between;">
+            <div style="display: flex; flex-direction: column; gap: 12px; flex: 1 1 340px;">
+              <span class="ctag">Command Engine</span>
+              <h3>Comandos cortos y combinables</h3>
+              <p>Los modificadores van en cualquier orden, usan el objetivo del laboratorio y rechazan combinaciones imposibles con un mensaje claro. Con <span class="mono" style="color: #8af4ff;">--dry-run</span> ves el nmap exacto sin ejecutar nada.</p>
+            </div>
+            <div style="flex: 1 1 460px; display: flex; flex-direction: column; gap: 14px;" aria-hidden="true">
+              <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
+                <span class="chip">urb red recon</span>
+                <span style="display: inline-flex; gap: 10px;"><span class="chip m swapA">quick</span><span class="chip m swapB">versions</span></span>
+                <span class="chip" style="border-style: dashed; color: #97a4b2;">--dry-run</span>
+              </div>
+              <div class="mono" style="font-size: 13.5px; color: #97a4b2; padding: 14px 16px; border-radius: 10px; background: rgba(0,0,0,.35); border: 1px solid rgba(255,255,255,.06);"><span style="color: #00ff87;">→</span> nmap -T4 --open --top-ports 100 -sV 10.10.10.3</div>
+            </div>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- COMMAND REFERENCE -->
+  <section class="sec" style="padding-top: 20px;">
+    <div class="wrap" style="display: flex; flex-direction: column; gap: 40px;">
+      <div class="rv" style="display: flex; flex-direction: column; gap: 18px;">
+        <p class="eyebrow">Referencia rápida</p>
+        <h2 class="h2">Cada módulo,<br>también como comando.</h2>
+        <p class="sub">El manual completo está en la propia terminal: <span class="kbd">urb manual</span>.</p>
+      </div>
+      <div class="tblbox rv2">
+        <table class="tbl">
+          <thead><tr><th>Módulo</th><th>Qué hace</th><th>Ejemplo</th></tr></thead>
+          <tbody>
+            <tr><td><span class="st" style="background: rgba(0,229,255,.12); color: #8af4ff;">RECON</span></td><td>Nmap con perfiles configurables: quick, default, full, stealth, udp y os.</td><td><code>urb scan 10.10.10.5 --profile quick</code></td></tr>
+            <tr><td><span class="st" style="background: rgba(0,229,255,.12); color: #8af4ff;">NETWORK</span></td><td>Interfaces, rutas, gateway, conexiones, descubrimiento de hosts, ping y chequeo.</td><td><code>urb network discover 192.168.56.0/24</code></td></tr>
+            <tr><td><span class="st" style="background: rgba(0,255,135,.12); color: #6fffb4;">MONITOR</span></td><td>CPU, RAM, swap, discos y procesos; ordena por CPU o memoria.</td><td><code>urb monitor procs -n 15</code></td></tr>
+            <tr><td><span class="st" style="background: rgba(255,69,69,.14); color: #ff9a9a;">LOGS</span></td><td>Autenticación, SSH, errores y búsqueda por fecha, usuario, IP o texto.</td><td><code>urb logs ssh --user root -n 50</code></td></tr>
+            <tr><td><span class="st" style="background: rgba(255,196,0,.14); color: #ffd666;">CTF</span></td><td>Crea laboratorios con scans/, exploits/, evidence/, notes/ y report.md.</td><td><code>urb ctf new htb-lame --target 10.10.10.3</code></td></tr>
+            <tr><td><span class="st" style="background: rgba(255,255,255,.08); color: #d5dee6;">SERVE</span></td><td>Servidor HTTP local, en 127.0.0.1 por defecto.</td><td><code>urb serve --port 8080</code></td></tr>
+            <tr><td><span class="st" style="background: rgba(255,255,255,.08); color: #d5dee6;">SETTINGS</span></td><td>Ver y editar la configuración, animaciones y motor de menús.</td><td><code>urb config set ANIMATIONS 0</code></td></tr>
+            <tr><td><span class="st" style="background: rgba(255,255,255,.08); color: #d5dee6;">DOCTOR</span></td><td>Comprueba dependencias y entorno.</td><td><code>urb doctor</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- NEXT -->
+  <section class="wrap" style="padding-bottom: 120px;">
+    <a class="nextp rv" href="flujos.html">
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <span class="nl">Siguiente</span>
+        <span class="nt">Los flujos: del objetivo al informe</span>
+      </div>
+      <span class="narrow"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+    </a>
+  </section>
+
+  </main>
+
+  <footer class="foot">
+    <div class="wrap" style="display: flex; flex-wrap: wrap; gap: 24px; align-items: center; justify-content: space-between;">
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <span class="mono" style="display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 9px; background: #00e5ff; color: #021014; font-weight: 700; font-size: 14px;">U</span>
+        <span style="font-size: 14px; color: #a2afbc;">URB-Tools · Licencia MIT · Creado por <a href="https://diegourbaneja.dev" target="_blank" rel="noopener">Diego Urbaneja</a></span>
+      </div>
+      <div style="display: flex; flex-wrap: wrap; gap: 22px;">
+        <a class="flink" href="index.html">Inicio</a>
+        <a class="flink" href="entornos.html">Entornos</a>
+        <a class="flink" href="flujos.html">Flujos</a>
+        <a class="flink" href="seguridad.html">Seguridad</a>
+        <a class="flink" href="instalar.html">Instalar</a>
+        <a class="flink" href="https://github.com/Urbii22/urb-tools" target="_blank" rel="noopener">GitHub</a>
+      </div>
+    </div>
+    <p class="wrap" style="margin: 28px auto 0; font-size: 13px; color: #97a4b2;">Úsala solo contra sistemas propios o con autorización explícita por escrito.</p>
+  </footer>
+</div>
+</body>
+</html>
